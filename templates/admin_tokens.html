@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Admin · Invite tokens - Guildhall{% endblock %}
+{% block content %}
+<h1>Invite token allowances</h1>
+<p class="muted">Default allowance for every account: <strong>{{ default_tokens }}</strong>.
+  Set an override below to give a specific account more or fewer tokens.</p>
+
+<form method="post" action="{{ url_for('admin_tokens') }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="set">
+  <label>Account name
+    <input type="text" name="username" maxlength="17" required autofocus>
+  </label>
+  <label>Tokens
+    <input type="number" name="tokens" min="0" max="1000" required>
+  </label>
+  <button type="submit">Set allowance</button>
+</form>
+
+<h2>Current overrides</h2>
+{% if not overrides %}
+<p class="muted">No overrides — every account uses the default of {{ default_tokens }}.</p>
+{% else %}
+<table class="roster">
+  <thead><tr><th>Account</th><th>Tokens</th><th></th></tr></thead>
+  <tbody>
+    {% for o in overrides %}
+    <tr>
+      <td>{{ o.username }}</td>
+      <td>{{ o.tokens }}</td>
+      <td>
+        <form class="inline" method="post" action="{{ url_for('admin_tokens') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="remove">
+          <input type="hidden" name="username" value="{{ o.username }}">
+          <button type="submit" class="link danger">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

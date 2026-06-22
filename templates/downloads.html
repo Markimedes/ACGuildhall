@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Downloads · Guildhall{% endblock %}
+{% block content %}
+<h1>Downloads</h1>
+<p class="muted">Files shared with the guild. Large downloads support pause and
+  resume.</p>
+
+{% if files %}
+<table class="roster downloads">
+  <thead>
+    <tr><th>File</th><th>Size</th><th>Updated</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for f in files %}
+    <tr>
+      <td>{{ f.name }}</td>
+      <td>{{ f.size_human }}</td>
+      <td class="muted">{{ f.modified }}</td>
+      <td><a class="badge" href="{{ url_for('download_file', name=f.name) }}">Download</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No files are available right now. Check back later.</p>
+{% endif %}
+{% endblock %}

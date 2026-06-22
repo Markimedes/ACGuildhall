@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Guildhall{% endblock %}
+{% block content %}
+<h1>Welcome, {{ username }}</h1>
+
+{% if guild %}
+<p>
+  Guild: <strong>{{ guild.guild_name }}</strong>
+  {% if guild.is_leader %}<span class="badge">Guild Leader</span>{% endif %}
+  &mdash; posting as <strong>{{ guild.char_name }}</strong>.
+</p>
+{% else %}
+<p class="muted">None of your characters are in a guild yet. Join one in-game to
+  use the forum and roster.</p>
+{% endif %}
+
+<div class="cards">
+  <a class="tile" href="{{ url_for('forum') }}">
+    <h2>Guild Forum</h2>
+    <p>Announcements from your guild leader and discussion with members.</p>
+  </a>
+  <a class="tile" href="{{ url_for('roster') }}">
+    <h2>Profession Roster</h2>
+    <p>See who in the guild can craft what.</p>
+  </a>
+  <a class="tile" href="{{ url_for('auctionhouse') }}">
+    <h2>Auction House</h2>
+    <p>What your bags and bank would sell for on the AH.</p>
+  </a>
+  <a class="tile" href="{{ url_for('downloads') }}">
+    <h2>Downloads</h2>
+    <p>Game client, addons, and other shared files.</p>
+  </a>
+  <a class="tile" href="{{ url_for('password') }}">
+    <h2>Change Password</h2>
+    <p>Update your account password.</p>
+  </a>
+</div>
+{% endblock %}

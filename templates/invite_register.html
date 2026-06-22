@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Create your account - Guildhall{% endblock %}
+{% block content %}
+<h1>Create your account</h1>
+<p class="muted">You've been invited to the realm. Pick your account name and password —
+  these are what you'll use to log in to the game.</p>
+
+<form method="post" action="{{ url_for('invite_redeem', token=token) }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Account name
+    <input type="text" name="username" maxlength="17" autocomplete="username"
+           required autofocus pattern="[A-Za-z0-9_.\-]{1,17}">
+  </label>
+  <label>Password
+    <input type="password" name="password" maxlength="16" autocomplete="new-password" required>
+  </label>
+  <label>Confirm password
+    <input type="password" name="confirm_password" maxlength="16" autocomplete="new-password" required>
+  </label>
+  <label>Email <span class="muted">(optional)</span>
+    <input type="email" name="email" maxlength="255" autocomplete="email">
+  </label>
+  <p class="muted">Account name up to 17 characters (letters, digits, _ . -); password up to 16.</p>
+  <button type="submit">Create account</button>
+</form>
+{% endblock %}

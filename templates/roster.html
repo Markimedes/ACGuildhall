@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Profession Roster - Guildhall{% endblock %}
+{% macro demand_tiles(items) %}
+<div class="group-demand">
+  <p class="muted demand-note">In demand &mdash; mats for this player's skill-up
+    recipes in this profession; number = how many such recipes use it.</p>
+  <div class="tile-grid">
+    {% for d in items %}
+    <a class="item-tile" href="https://www.wowhead.com/wotlk/item={{ d.id }}"
+       target="_blank" rel="noopener">
+      <div class="tile-icon">
+        <img src="{{ d.icon | icon_url('large') }}" alt="" loading="lazy">
+        <span class="tile-qty">{{ d.need }}</span>
+      </div>
+      <span class="tile-name">{{ d.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+{% block content %}
+<h1>Profession Roster</h1>
+
+{% if not guild %}
+<p class="muted">Join a guild in-game to see its roster.</p>
+{% elif not categories %}
+<p class="muted">No professions recorded for {{ guild.guild_name }} yet.</p>
+{% else %}
+<p>Guild: <strong>{{ guild.guild_name }}</strong></p>
+
+{% if surplus %}
+<section class="surplus">
+  <h2>Mats you have that guildmates need</h2>
+  <p class="muted">Items in {{ guild.char_name }}'s bags &amp; bank that aren't needed
+    for their own leveling but are in demand for other members &mdash; good to hand off.</p>
+  <table class="roster surplus-table">
+    <thead><tr><th>Item</th><th>Needed by</th><th>Needed for</th></tr></thead>
+    <tbody>
+      {% for s in surplus %}
+      <tr>
+        <td>
+          <a class="wh-link" href="https://www.wowhead.com/wotlk/item={{ s.id }}"
+             target="_blank" rel="noopener">
+            <img class="r-icon" src="{{ s.icon | icon_url('small') }}" alt="" loading="lazy">{{ s.name }}</a>
+        </td>
+        <td>{% for n in s.needers %}<a href="{{ url_for('player', guid=n.guid) }}">{{ n.name }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td class="muted">{% for n in s.needers %}{{ n.professions | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% for cat in categories %}
+<h2 class="cat-heading">{{ cat.name }}</h2>
+{% for prof in cat.professions %}
+<section class="prof-table">
+  <h3>{{ prof.name }} <span class="muted">({{ prof.members|length }} player{{ '' if prof.members|length == 1 else 's' }})</span></h3>
+  <div class="member-list">
+    {% for m in prof.members %}
+    {% set items = member_demand.get(m.char_guid, {}).get(prof.skill) %}
+    <details class="member-row">
+      <summary>
+        <a class="member-name" href="{{ url_for('player', guid=m.char_guid) }}">{{ m.char_name }}</a>
+        <span class="muted">lvl {{ m.level }}</span>
+        <span class="skill">{{ m.value }}/{{ m.max }}</span>
+      </summary>
+      <div class="member-body">
+        {% if items %}{{ demand_tiles(items) }}
+        {% else %}<p class="muted">No in-demand mats at this skill.</p>{% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endblock %}

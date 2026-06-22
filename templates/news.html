@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}News - Guildhall{% endblock %}
+
+{% macro story(article, compact=false) %}
+<article class="news-story{% if compact %} news-story-compact{% endif %}">
+  <p class="news-kicker">{{ category_titles.get(article.category, article.category) }}</p>
+  <h2 class="news-headline">{{ article.headline }}</h2>
+  {% if article.dek %}<p class="news-dek">{{ article.dek }}</p>{% endif %}
+  <p class="news-byline">
+    By <strong>{{ article.author }}</strong>, {{ article.author_title }}
+    {%- if article.dateline %} &middot; <span class="news-dateline">{{ article.dateline }}</span>{% endif %}
+  </p>
+  {% if compact %}
+  {# Short notice / verse -- render as one block, preserving the writer's own
+     line breaks (CSS white-space: pre-line) so a poem keeps its shape. #}
+  <div class="news-body obit-body">{{ article.content.strip() }}</div>
+  {% else %}
+  <div class="news-body">
+    {% for para in article.content.split('\n\n') %}
+    {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% block content %}
+<header class="news-masthead">
+  <h1 class="news-title">The Guildhall Herald</h1>
+  <p class="news-edition">
+    {% if is_today %}Today's Edition{% else %}Edition of {{ edition_date }}{% endif %}
+    {% if is_today and events and (events.enabled or events.discount_enabled) %} &middot; {{ events.date }}{% endif %}
+  </p>
+  {% if prev_date or next_date or not is_today %}
+  <nav class="news-nav">
+    {% if prev_date %}<a href="{{ url_for('news_archive', edition=prev_date) }}">&larr; {{ prev_date }}</a>{% endif %}
+    {% if not is_today %}<a href="{{ url_for('news') }}">Latest edition</a>{% endif %}
+    {% if next_date %}<a href="{{ url_for('news_archive', edition=next_date) }}">{{ next_date }} &rarr;</a>{% endif %}
+  </nav>
+  {% endif %}
+</header>
+
+{% if exploit_articles or articles or obituary_articles %}
+  {# Heroic Exploits lead the edition, then the market sections, then the
+     Obituaries column closes it out. #}
+  {% for article in exploit_articles %}{{ story(article) }}{% endfor %}
+  {% for article in articles %}{{ story(article) }}{% endfor %}
+  {% if obituary_articles %}
+  <section class="obituaries">
+    <h2 class="obit-heading">Obituaries</h2>
+    <p class="obit-standfirst muted">In memoriam &mdash; the realm bids farewell to
+      those who fell this day.</p>
+    <div class="obit-list">
+      {% for article in obituary_articles %}{{ story(article, compact=true) }}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+{% elif not is_today %}
+  <div class="card">
+    <p>No edition was published on {{ edition_date }}.</p>
+    <p class="muted">The Herald only keeps the editions it actually printed &mdash;
+      quiet days leave no paper behind.</p>
+  </div>
+{% elif not desk_available %}
+  <div class="card">
+    <p>The news desk is quiet today &mdash; no correspondent is on duty.</p>
+    <p class="muted">The Herald's AI reporters are offline (no Gemini API key
+      configured, or the model is unavailable). Set
+      <code>GUILDHALL_GEMINI_API_KEY</code> to bring them back.</p>
+  </div>
+{% else %}
+  <div class="card">
+    <p>A quiet day across the realm &mdash; no market shifts or notable exploits
+      to report this morning.</p>
+    <p class="muted">Market stories appear when a daily Auction House event stirs
+      the markets; Heroic Exploits when adventurers earn achievements or finish
+      quests.</p>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Auction House - Guildhall{% endblock %}
+{# A price multiplier (1.30 / 0.78 / 1.0) as a coloured movement: green up-arrow
+   for a premium, red down-arrow for a discount, em-dash when flat. #}
+{% macro move(m) %}
+{%- set delta = ((m - 1) * 100) | round | int -%}
+{%- if delta > 0 -%}<span class="price-up">&#9650; +{{ delta }}%</span>
+{%- elif delta < 0 -%}<span class="price-down">&#9660; {{ delta }}%</span>
+{%- else -%}<span class="muted">&mdash;</span>
+{%- endif -%}
+{% endmacro %}
+{% macro item_table(items, selectable) %}
+<table class="roster ah-table">
+  <thead>
+    <tr>
+      {% if selectable %}<th class="ah-pick"></th>{% endif %}
+      <th>Item</th><th class="num">Qty</th><th class="num">Each</th><th class="num">Total</th><th class="num">Multiplier</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr class="{{ 'unsellable' if not it.sellable }}">
+      {% if selectable %}
+      <td class="ah-pick">
+        {% if it.sellable %}
+        <input type="checkbox" name="row" value="{{ it.guids | join(',') }}"
+               aria-label="Select {{ it.name }}"{% if it.junk %} data-junk="1"{% endif %}>
+        {% endif %}
+      </td>
+      {% endif %}
+      <td>
+        <a class="wh-link q{{ it.quality }}" href="https://www.wowhead.com/wotlk/item={{ it.entry }}"
+           target="_blank" rel="noopener">
+          <img class="r-icon" src="{{ it.icon | icon_url('small') }}" alt="" loading="lazy">{{ it.name }}</a>
+        {% if it.random %}<span class="tag" title="Price includes the item's rolled random property/suffix">random</span>{% endif %}
+        {% if it.reason %}<span class="tag">{{ it.reason }}</span>{% endif %}
+      </td>
+      <td class="num">{{ it.count }}</td>
+      <td class="num">{% if it.unit is not none %}{{ it.unit | money }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+      <td class="num">{% if it.total is not none %}{{ it.total | money }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+      <td class="num">{% if it.soulbound %}<span class="tag ah-soulbound-tag">Soulbound</span>{% elif it.junk %}<span class="tag ah-junk-tag">Junk</span>{% elif it.vendor_priced %}<span class="tag ah-vendor-tag">Vendor Priced</span>{% elif it.multiplier is not none %}{{ move(it.multiplier) }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{% block content %}
+<h1>Auction House</h1>
+
+{% if ah_events %}
+<div class="ah-events" role="status">
+  <span class="ah-events-label">Today&rsquo;s market events</span>
+  {% if ah_events.enabled %}
+  <span class="ah-event-pill up" title="Products of this profession sell for more today">
+    <span class="ah-event-axis">Profession</span>
+    {{ ah_events.profession }} {{ move(ah_events.profession_multiplier) }}</span>
+  <span class="ah-event-pill up" title="Items in this category sell for more today">
+    <span class="ah-event-axis">Category</span>
+    {{ ah_events.category }} {{ move(ah_events.category_multiplier) }}</span>
+  <span class="ah-event-pill up" title="Items granting this stat sell for more today">
+    <span class="ah-event-axis">Stat</span>
+    {{ ah_events.stat }} {{ move(ah_events.stat_multiplier) }}</span>
+  {% endif %}
+  {% if ah_events.discount_enabled %}
+  <span class="ah-event-pill down" title="Products of this profession are in a slump and sell for less today">
+    <span class="ah-event-axis">Profession</span>
+    {{ ah_events.discount_profession }} {{ move(ah_events.discount_profession_multiplier) }}</span>
+  <span class="ah-event-pill down" title="Items in this category are in a slump and sell for less today">
+    <span class="ah-event-axis">Category</span>
+    {{ ah_events.discount_category }} {{ move(ah_events.discount_category_multiplier) }}</span>
+  <span class="ah-event-pill down" title="Items granting this stat are in a slump and sell for less today">
+    <span class="ah-event-axis">Stat</span>
+    {{ ah_events.discount_stat }} {{ move(ah_events.discount_stat_multiplier) }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if not character %}
+<p class="muted">None of your characters were found. Create a character in-game first.</p>
+{% else %}
+{% if not service_up %}
+<p class="flash flash-error">The pricing service is unreachable, so items show as
+  &ldquo;Not priced&rdquo;. Try again shortly.</p>
+{% endif %}
+
+{% set can_select = listing_enabled %}
+
+<div class="ah-grand">
+  <span class="ah-grand-label">Total sellable value</span>
+  <span class="ah-grand-value">{{ grand_total | money }}</span>
+</div>
+
+{% if can_refresh %}
+<div class="ah-refresh">
+  <form method="post" action="{{ url_for('auctionhouse_refresh') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="link ah-refresh-btn">&#8635; Refresh inventory</button>
+  </form>
+  <span class="muted">
+    {%- if char_online %} Your character is online; bags only sync to the panel
+    every few minutes. Refresh to pull them now.
+    {%- else %} Your character is offline, so this list is already current.{% endif %}
+  </span>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('auctionhouse_review') }}" id="ah-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ah-section">
+    <h2>Inventory <span class="muted">({{ totals.inventory | money }})</span></h2>
+    {% if sections.inventory %}{{ item_table(sections.inventory, can_select) }}
+    {% else %}<p class="muted">Nothing in bags.</p>{% endif %}
+  </section>
+
+  <section class="ah-section">
+    <h2>Bank <span class="muted">({{ totals.bank | money }})</span></h2>
+    {% if sections.bank %}{{ item_table(sections.bank, can_select) }}
+    {% else %}<p class="muted">Nothing in the bank.</p>{% endif %}
+  </section>
+
+</form>
+
+{% endif %}
+{% endblock %}
+
+{% block actions %}
+{% if listing_enabled and character %}
+<div class="action-card">
+  <h2>Sell items</h2>
+  <p class="muted ah-sel-count">No items selected</p>
+  <button type="button" id="ah-junk-btn" class="link ah-junk-btn" hidden>Select junk</button>
+  <button type="submit" form="ah-form" id="ah-sell-btn" disabled>Auction selected&hellip;</button>
+</div>
+<script src="{{ url_for('static', filename='auctionhouse.js') }}"></script>
+{% endif %}
+{% endblock %}

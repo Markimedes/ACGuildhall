@@ -1,0 +1,50 @@
+# Guildhall service. Joins the existing 'edge' network so the nginx container
+# already on that network can reverse-proxy to it by name
+# (proxy_pass http://guildhall:5000).
+#
+#   sudo docker compose up -d --build
+#
+services:
+  guildhall:
+    build: .
+    image: guildhall:latest
+    container_name: guildhall
+    restart: unless-stopped
+    env_file: .env
+    # Reach the host's natively-running MySQL via host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Shared downloads dir, read-only. The app only *lists* these files; nginx
+    # streams the bytes (X-Accel-Redirect), so it must mount the same path too.
+    volumes:
+      - /media/plex/downloads:/media/plex/downloads:ro
+    networks:
+      - edge
+    # No host port is published: traffic comes in only through the nginx
+    # container on the shared network. Uncomment to expose for local debugging:
+    # ports:
+    #   - "127.0.0.1:5000:5000"
+
+  # Once-a-day news desk generator. Reuses the same image (built by the guildhall
+  # service) but runs the scheduler instead of gunicorn, so the AI articles are
+  # generated exactly once per day -- just after the AHPricingService rolls the new
+  # market event -- rather than lazily by the first page view. Single process, so
+  # no gunicorn-worker races. Set TZ to match the AHPricingService's clock.
+  news-scheduler:
+    image: guildhall:latest
+    container_name: guildhall-news
+    restart: unless-stopped
+    command: ["python", "news_scheduler.py"]
+    env_file: .env
+    # MySQL on the host; the AHPricingService + service discovery on 'edge'.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - edge
+    depends_on:
+      - guildhall
+
+networks:
+  edge:
+    external: true
+    name: edge

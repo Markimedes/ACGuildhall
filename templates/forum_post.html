@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} - Guildhall{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('forum_feed', feed=post.feed) }}">&larr; Back</a></p>
+
+<article class="card">
+  <h1>{{ post.title }}</h1>
+  <div class="meta">
+    by {{ post.author_name or 'Unknown' }} &middot; {{ post.created_at }}
+    {% if post.feed == 'official' %}<span class="badge">Announcement</span>{% endif %}
+  </div>
+  <div class="body">{{ post.body | nl2br }}</div>
+  {% if guild.is_leader or post.author_guid == guild.char_guid %}
+  <form class="inline" method="post" action="{{ url_for('forum_post_delete', post_id=post.id) }}"
+        onsubmit="return confirm('Delete this post and its replies?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="link danger">Delete</button>
+  </form>
+  {% endif %}
+</article>
+
+<h2>Replies</h2>
+{% if replies %}
+<ul class="replylist">
+  {% for reply in replies %}
+  <li class="card">
+    <div class="meta">{{ reply.author_name or 'Unknown' }} &middot; {{ reply.created_at }}</div>
+    <div class="body">{{ reply.body | nl2br }}</div>
+    {% if guild.is_leader or reply.author_guid == guild.char_guid %}
+    <form class="inline" method="post" action="{{ url_for('forum_reply_delete', reply_id=reply.id) }}"
+          onsubmit="return confirm('Delete this reply?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="link danger">Delete</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No replies yet.</p>
+{% endif %}
+
+<form method="post" action="{{ url_for('forum_reply', post_id=post.id) }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Reply
+    <textarea name="body" rows="3" maxlength="2000" required></textarea>
+  </label>
+  <button type="submit">Post reply</button>
+</form>
+{% endblock %}

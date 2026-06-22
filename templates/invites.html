@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Invites - Guildhall{% endblock %}
+{% block content %}
+<h1>Invites</h1>
+
+<p>
+  Invite tokens available: <strong>{{ tokens.available }}</strong>
+  <span class="muted">of {{ tokens.allowance }}</span>
+</p>
+<p class="muted">
+  Spending a token creates a link valid for {{ ttl_hours }} hours. If a link isn't
+  used in time, the token is refunded automatically.
+</p>
+
+{% if new_link %}
+<div class="card">
+  <p><strong>Your new invite link</strong> — copy it now, it won't be shown again:</p>
+  <input class="copyable" type="text" readonly value="{{ new_link }}"
+         onclick="this.select()" aria-label="Invite link">
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('invites') }}" class="inline-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" {{ 'disabled' if tokens.available <= 0 }}>Create invite link</button>
+</form>
+
+<h2>Your invites</h2>
+{% if not invites %}
+<p class="muted">You haven't created any invites yet.</p>
+{% else %}
+<table class="roster">
+  <thead><tr><th>Created</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for inv in invites %}
+    <tr>
+      <td>{{ inv.created_at }}</td>
+      <td>
+        {% if inv.used_at %}
+          <span class="diff-green">Used</span> <span class="muted">{{ inv.used_at }}</span>
+        {% elif inv.pending %}
+          <span class="diff-orange">Pending</span>
+          <span class="muted">
+            {% set h = (inv.minutes_left // 60) %}{% set m = (inv.minutes_left % 60) %}
+            expires in {{ h }}h {{ m }}m
+          </span>
+        {% else %}
+          <span class="muted">Expired — token refunded</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if inv.pending %}
+        <form class="inline" method="post"
+              action="{{ url_for('revoke_invite', invite_id=inv.id) }}"
+              onsubmit="return confirm('Cancel this invite and refund the token?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link danger">Cancel</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

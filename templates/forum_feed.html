@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set is_official = feed == 'official' %}
+{% block title %}{{ 'Announcements' if is_official else 'Member Board' }} - Guildhall{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('forum') }}">&larr; Forum</a></p>
+<h1>{{ 'Announcements' if is_official else 'Member Board' }}</h1>
+
+{% if can_post %}
+<form method="post" action="{{ url_for('forum_feed', feed=feed) }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Title
+    <input type="text" name="title" maxlength="128" required>
+  </label>
+  <label>Message
+    <textarea name="body" rows="5" maxlength="2000" required></textarea>
+  </label>
+  <button type="submit">Post</button>
+</form>
+{% elif is_official %}
+<p class="muted">Only the guild leader can post announcements.</p>
+{% endif %}
+
+{% if posts %}
+<ul class="postlist">
+  {% for post in posts %}
+  <li>
+    <a class="post-title" href="{{ url_for('forum_post', post_id=post.id) }}">{{ post.title }}</a>
+    <div class="meta">
+      by {{ post.author_name or 'Unknown' }}
+      &middot; {{ post.created_at }}
+      &middot; {{ post.reply_count }} repl{{ 'y' if post.reply_count == 1 else 'ies' }}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No posts yet.</p>
+{% endif %}
+{% endblock %}

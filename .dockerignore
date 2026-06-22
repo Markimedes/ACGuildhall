@@ -1,0 +1,12 @@
+# Keep secrets and local cruft out of the image.
+config.toml
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+plan.md
+README.md
+*.log

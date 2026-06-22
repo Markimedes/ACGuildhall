@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Chronicle - Guildhall{% endblock %}
+{% block content %}
+{% if not character %}
+<h1>Chronicle</h1>
+<p class="muted">No character selected.</p>
+{% else %}
+<h1>{{ character.name }}'s Chronicle
+  <span class="muted">level {{ character.level }}</span></h1>
+<p class="muted">A running timeline of {{ character.name }}'s notable deeds &mdash;
+  newest first.</p>
+
+{% if not days %}
+<p class="muted">No events recorded yet.</p>
+{% else %}
+{# event_type -> (icon, label-prefix). The detail/value columns carry the
+   specifics; achievement and loot rows additionally link out to wowhead. #}
+{% set meta = {
+  'levelup':        ('⬆️', 'Reached level'),
+  'kill_worldboss': ('\U0001F409', 'Slew world boss'),
+  'kill_boss':      ('⚔️', 'Defeated'),
+  'kill_rare':      ('✨', 'Hunted'),
+  'profession':     ('\U0001F6E0️', ''),
+  'quest':          ('\U0001F4DC', 'Completed'),
+  'death':          ('\U0001F480', ''),
+  'reputation':     ('\U0001F3C5', 'Became Exalted with'),
+  'achievement':    ('\U0001F3C6', 'Earned'),
+  'loot':           ('\U0001F48E', 'Looted')
+} %}
+
+{% for day in days %}
+<h2 class="cat-heading">{{ day.date.strftime('%A, %B %-d, %Y') }}</h2>
+<ul class="chronicle">
+  {% for e in day.events %}
+  {% set m = meta.get(e.event_type, ('•', '')) %}
+  <li class="chron-row">
+    <span class="chron-time muted">{{ e.event_time.strftime('%H:%M') }}</span>
+    <span class="chron-icon">{{ m[0] }}</span>
+    <span class="chron-text">
+      {% if e.event_type == 'levelup' %}
+        Reached level {{ e.value }}
+      {% elif e.event_type == 'death' %}
+        {{ e.detail or 'Died' }}
+      {% elif e.event_type == 'profession' %}
+        {{ e.detail }}
+      {% elif e.event_type == 'achievement' %}
+        Earned <a class="wh-link" target="_blank" rel="noopener"
+          href="https://www.wowhead.com/wotlk/achievement={{ e.ref_id }}">{{ e.detail }}</a>
+      {% elif e.event_type == 'loot' %}
+        Looted <a class="wh-link" target="_blank" rel="noopener"
+          href="https://www.wowhead.com/wotlk/item={{ e.ref_id }}">{{ e.detail }}</a>
+      {% else %}
+        {{ m[1] }} {{ e.detail }}
+      {% endif %}
+      <span class="muted chron-lvl">&middot; lvl {{ e.level }}</span>
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ target.name }} - Guildhall{% endblock %}
+{% macro demand_tiles(items) %}
+<div class="group-demand">
+  <p class="muted demand-note">In demand &mdash; base mats useful for skill-up
+    (orange/yellow) recipes; number = how many of those recipes use it.</p>
+  <div class="tile-grid">
+    {% for d in items %}
+    <a class="item-tile" href="https://www.wowhead.com/wotlk/item={{ d.id }}"
+       target="_blank" rel="noopener">
+      <div class="tile-icon">
+        <img src="{{ d.icon | icon_url('large') }}" alt="" loading="lazy">
+        <span class="tile-qty">{{ d.need }}</span>
+      </div>
+      <span class="tile-name">{{ d.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+{% block content %}
+<p><a href="{{ url_for('roster') }}">&larr; Roster</a></p>
+<h1>{{ target.name }} <span class="muted">level {{ target.level }}</span></h1>
+
+{% if profs %}
+<p>
+  {% for p in profs %}
+  <span class="skill">{{ p.skill | profession }} {{ p.value }}/{{ p.max }}</span>
+  {% endfor %}
+</p>
+{% else %}
+<p class="muted">No professions learned.</p>
+{% endif %}
+
+<h2>Known Recipes</h2>
+{% if not recipes_available %}
+<p class="muted">Recipe data is unavailable (run build_recipes.py).</p>
+{% elif not recipe_categories %}
+<p class="muted">No recipes known.</p>
+{% else %}
+<p class="muted legend">
+  Difficulty:
+  <span class="diff diff-orange">orange</span>
+  <span class="diff diff-yellow">yellow</span>
+  <span class="diff diff-green">green</span>
+  <span class="diff diff-gray">gray</span>
+  &mdash; hardest first. Expand a recipe to see its reagents.
+  In-demand mats updated {{ demand_at }}.
+</p>
+{% for cat in recipe_categories %}
+<h3 class="cat-heading">{{ cat.name }}</h3>
+{% for g in cat.groups %}
+<section class="recipe-group">
+  <h4>{{ g.profession }} <span class="muted">({{ g.recipes|length }} recipe{{ '' if g.recipes|length == 1 else 's' }})</span></h4>
+  {% if demand_by_prof.get(g.skill) %}{{ demand_tiles(demand_by_prof.get(g.skill)) }}{% endif %}
+  <ul class="recipes">
+    {% for r in g.recipes %}
+    <li>
+      {% set wh_url = ('https://www.wowhead.com/wotlk/item=' ~ r.item) if r.item else ('https://www.wowhead.com/wotlk/spell=' ~ r.spell) %}
+      {% if r.reagents %}
+      <details class="recipe">
+        <summary class="diff diff-{{ r.color }}"><a class="wh-link" href="{{ wh_url }}" target="_blank" rel="noopener"><img class="r-icon" src="{{ r.icon | icon_url('small') }}" alt="" loading="lazy">{{ r.name }}</a></summary>
+        <ul class="reagents">
+          {% for ing in r.reagents %}
+          <li><a class="wh-link" href="https://www.wowhead.com/wotlk/item={{ ing.id }}" target="_blank" rel="noopener"><img class="r-icon" src="{{ ing.icon | icon_url('small') }}" alt="" loading="lazy">{{ ing.count }}&times; {{ ing.name }}</a></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% else %}
+      <a class="diff diff-{{ r.color }} no-reagents wh-link" href="{{ wh_url }}" target="_blank" rel="noopener"><img class="r-icon" src="{{ r.icon | icon_url('small') }}" alt="" loading="lazy">{{ r.name }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,9 @@
+Flask>=3.0
+# Imported directly (app.py: Markup, escape); ships with Flask but pinned here
+# since we use it on its own.
+markupsafe>=2.1
+mysql-connector-python>=8.3
+gunicorn>=21.2
+# AI news desk (Gemini). Optional at runtime -- without GUILDHALL_GEMINI_API_KEY
+# the news desk stays dark -- but installed so the feature is available.
+google-genai>=1.0

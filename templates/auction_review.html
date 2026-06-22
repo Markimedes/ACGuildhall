@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}List on Auction House - Guildhall{% endblock %}
+{% block content %}
+<h1>List on the Auction House</h1>
+
+<p class="muted">
+  For each item choose a <strong>stack size</strong> and how many
+  <strong>stacks</strong> to post &mdash; just like the in-game auctioneer. Bid and
+  buyout are <em>per stack</em>, prefilled from the realm's pricing service. A
+  non-refundable deposit is charged up front from
+  <strong>{{ character.name }}</strong>'s gold; the figure shown is an estimate
+  &mdash; the server charges the exact amount.
+</p>
+
+<form method="post" action="{{ url_for('auctionhouse_list') }}" id="ah-list-form"
+      data-pct="{{ deposit_percent }}" data-rate="{{ deposit_rate }}"
+      data-money="{{ money }}" data-online="{{ char_online | lower }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {# The form submits a single JSON object (built by auction_review.js on submit)
+     so auctioned and vendored items stay logically separate; the row inputs below
+     are UI only and carry no name. #}
+  <input type="hidden" name="payload" id="ah-payload">
+
+  {% if rows %}
+  <table class="roster ah-table ah-list-table">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th class="num">Stack &times; #</th>
+        <th class="num">Bid /stack</th><th class="num">Buyout /stack</th>
+        <th class="num">Est. deposit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="ah-list-row" data-guids="{{ r.guids_csv }}"
+          data-sell="{{ r.sell_price }}" data-unit="{{ r.unit_price }}"
+          data-available="{{ r.count }}" data-max-stack="{{ r.max_stack }}">
+        <td>
+          <a class="wh-link q{{ r.quality }}" href="https://www.wowhead.com/wotlk/item={{ r.entry }}"
+             target="_blank" rel="noopener">
+            <img class="r-icon" src="{{ r.icon | icon_url('small') }}" alt="" loading="lazy">{{ r.name }}</a>
+        </td>
+        <td class="num ah-stack">
+          <input type="number" class="ah-stack-size"
+                 min="1" max="{{ r.max_stack }}" value="{{ r.def_stack }}"
+                 aria-label="stack size"><span class="ah-coin">&times;</span>
+          <input type="number" class="ah-num-stacks"
+                 min="1" value="{{ r.def_num }}" aria-label="number of stacks">
+          <div class="muted ah-stack-note"></div>
+        </td>
+        <td class="num ah-price">
+          <input type="number" class="ah-bid-g" min="0" value="{{ r.bid_gsc[0] }}" aria-label="bid gold"><span class="ah-coin">g</span>
+          <input type="number" class="ah-bid-s" min="0" max="99" value="{{ r.bid_gsc[1] }}" aria-label="bid silver"><span class="ah-coin">s</span>
+          <input type="number" class="ah-bid-c" min="0" max="99" value="{{ r.bid_gsc[2] }}" aria-label="bid copper"><span class="ah-coin">c</span>
+        </td>
+        <td class="num ah-price">
+          <input type="number" class="ah-buy-g" min="0" value="{{ r.buyout_gsc[0] }}" aria-label="buyout gold"><span class="ah-coin">g</span>
+          <input type="number" class="ah-buy-s" min="0" max="99" value="{{ r.buyout_gsc[1] }}" aria-label="buyout silver"><span class="ah-coin">s</span>
+          <input type="number" class="ah-buy-c" min="0" max="99" value="{{ r.buyout_gsc[2] }}" aria-label="buyout copper"><span class="ah-coin">c</span>
+        </td>
+        <td class="num ah-row-deposit">&mdash;</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if vendor_rows %}
+  <section class="ah-vendor">
+    <h2>Sold to vendor</h2>
+    <p class="muted">
+      These items are only worth their vendor price, so they aren't auctioned
+      &mdash; they're sold instantly to a vendor at the price shown when you
+      confirm. The price is fixed and can't be edited.
+    </p>
+    <table class="roster ah-table ah-vendor-table">
+      <thead>
+        <tr>
+          <th>Item</th><th class="num">Qty</th>
+          <th class="num">Each</th><th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in vendor_rows %}
+        <tr class="ah-vendor-row" data-guids="{{ r.guids_csv }}">
+          <td>
+            <a class="wh-link q{{ r.quality }}" href="https://www.wowhead.com/wotlk/item={{ r.entry }}"
+               target="_blank" rel="noopener">
+              <img class="r-icon" src="{{ r.icon | icon_url('small') }}" alt="" loading="lazy">{{ r.name }}</a>
+          </td>
+          <td class="num">{{ r.count }}</td>
+          <td class="num">{{ r.vendor_unit | money }}</td>
+          <td class="num">{{ r.vendor_total | money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</form>
+{% endblock %}
+
+{% block actions %}
+<div class="action-card">
+  <h2>List items</h2>
+  {% if rows %}
+  <label>Duration
+    <select name="hours" form="ah-list-form" id="ah-hours">
+      {% for h in durations %}
+      <option value="{{ h }}"{{ ' selected' if h == 12 }}>{{ h }} hours</option>
+      {% endfor %}
+    </select>
+  </label>
+  <p class="ah-deposit-line">Est. deposit
+    <strong class="ah-total-deposit">&mdash;</strong></p>
+  <p class="muted">Available: <span class="money">{{ money | money }}</span></p>
+  <p class="ah-deposit-warn flash flash-error" hidden>
+    Estimated deposit exceeds {{ character.name }}'s gold &mdash; remove items or
+    shorten the duration.
+  </p>
+  {% endif %}
+  {% if vendor_rows %}
+  <p class="muted">
+    {{ vendor_rows | length }} item{{ 's' if vendor_rows | length != 1 }} will be
+    sold instantly to a vendor.
+  </p>
+  {% endif %}
+  <button type="submit" form="ah-list-form" id="ah-list-submit">
+    {%- if rows and vendor_rows %}Auction &amp; sell items
+    {%- elif rows %}Put up for auction
+    {%- else %}Sell to vendor{% endif %}</button>
+  <a class="link" href="{{ url_for('auctionhouse') }}">Cancel</a>
+</div>
+<script src="{{ url_for('static', filename='auction_review.js') }}"></script>
+{% endblock %}

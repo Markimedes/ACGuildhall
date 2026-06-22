@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Guildhall{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {# Capture the page's optional action rail so we only render it when present. #}
+  {% set action_content %}{% block actions %}{% endblock %}{% endset %}
+
+  <div class="layout{{ ' has-actions' if action_content.strip() }}">
+    <aside class="nav-rail">
+      <a class="brand" href="{{ url_for('dashboard') }}">Guildhall</a>
+      {% if session.account_id %}
+      <nav class="nav-links">
+        <a href="{{ url_for('news') }}" class="{{ 'active' if request.endpoint in ('news', 'news_archive') }}">News</a>
+        <a href="{{ url_for('forum') }}" class="{{ 'active' if request.endpoint == 'forum' }}">Forum</a>
+        <a href="{{ url_for('roster') }}" class="{{ 'active' if request.endpoint == 'roster' }}">Roster</a>
+        <a href="{{ url_for('chronicle') }}" class="{{ 'active' if request.endpoint == 'chronicle' }}">Chronicle</a>
+        <a href="{{ url_for('auctionhouse') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('auctionhouse') }}">Auction House</a>
+        <a href="{{ url_for('downloads') }}" class="{{ 'active' if request.endpoint == 'downloads' }}">Downloads</a>
+        <a href="{{ url_for('invites') }}" class="{{ 'active' if request.endpoint == 'invites' }}">Invites</a>
+        {% if is_admin %}<a href="{{ url_for('admin_tokens') }}" class="{{ 'active' if request.endpoint == 'admin_tokens' }}">Admin</a>{% endif %}
+        <a href="{{ url_for('password') }}" class="{{ 'active' if request.endpoint == 'password' }}">Password</a>
+      </nav>
+      <div class="nav-foot">
+        {% if characters %}
+        <details class="char-switch">
+          <summary>{{ active_character.name if active_character else 'No characters' }}{% if active_character and active_character.guild_name %} <span class="muted">· {{ active_character.guild_name }}</span>{% endif %}</summary>
+          <div class="char-menu">
+            {% for ch in characters %}
+            <form method="post" action="{{ url_for('select_character') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="guid" value="{{ ch.guid }}">
+              <button type="submit" class="char-option {{ 'active' if active_character and ch.guid == active_character.guid }}">
+                {{ ch.name }}
+                <span class="muted">lvl {{ ch.level }}{% if ch.guild_name %} · {{ ch.guild_name }}{% else %} · no guild{% endif %}</span>
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+        <form class="inline" method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="link">Log out ({{ session.username }})</button>
+        </form>
+      </div>
+      {% endif %}
+    </aside>
+
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ 'flash-error' if category == 'error' else 'flash-ok' }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    {% if action_content.strip() %}
+    <aside class="action-rail">
+      {{ action_content }}
+    </aside>
+    {% endif %}
+  </div>
+
+  <!-- Wowhead item tooltips (config from a local file, then their widget). -->
+  <script src="{{ url_for('static', filename='wowhead.js') }}"></script>
+  <script src="https://wow.zamimg.com/widgets/power.js"></script>
+</body>
+</html>

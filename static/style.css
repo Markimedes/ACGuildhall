@@ -1,0 +1,556 @@
+:root {
+  --bg: #1c1a17;
+  --panel: #2a2723;
+  --ink: #ece6da;
+  --muted: #a89e8c;
+  --accent: #c9a227;
+  --danger: #c0563f;
+  --line: #3c382f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Three-column shell: left nav rail, content, optional right action rail.
+   Both rails are sticky so actions/nav stay reachable however far you scroll. */
+.layout {
+  display: flex; align-items: flex-start; gap: 1.5rem;
+  max-width: 1200px; margin: 0 auto; padding: 1.25rem;
+}
+.nav-rail {
+  flex: 0 0 190px; position: sticky; top: 1.25rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.brand { display: block; font-weight: 700; font-size: 1.25rem; color: var(--accent); }
+.nav-links { display: flex; flex-direction: column; gap: 0.15rem; }
+.nav-links a {
+  color: var(--ink); padding: 0.45rem 0.6rem; border-radius: 0.4rem;
+  border-left: 3px solid transparent;
+}
+.nav-links a:hover { background: var(--panel); text-decoration: none; }
+.nav-links a.active {
+  color: var(--accent); background: var(--panel);
+  border-left-color: var(--accent); font-weight: 600;
+}
+.nav-foot {
+  margin-top: 0.5rem; padding-top: 0.8rem; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start;
+}
+
+.content { flex: 1 1 auto; min-width: 0; max-width: 820px; }
+
+.action-rail { flex: 0 0 240px; position: sticky; top: 1.25rem; }
+.action-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 0.6rem; padding: 0.9rem 1rem;
+}
+.action-card h2 { margin: 0 0 0.5rem; font-size: 1.05rem; color: var(--accent); }
+.action-card > * + * { margin-top: 0.6rem; }
+.action-card button { width: 100%; }
+.action-card label { display: block; font-size: 0.9rem; color: var(--muted); }
+.action-card select { width: 100%; margin-top: 0.25rem; }
+
+@media (max-width: 860px) {
+  .layout { flex-direction: column; gap: 1rem; }
+  .nav-rail, .action-rail { position: static; flex-basis: auto; width: 100%; }
+  .nav-links { flex-direction: row; flex-wrap: wrap; gap: 0.4rem; }
+  .content { max-width: none; }
+  /* On mobile the action rail sticks to the bottom of the viewport instead. */
+  .action-rail {
+    position: sticky; bottom: 0; top: auto; z-index: 30;
+    background: var(--bg); padding-top: 0.5rem;
+  }
+}
+
+h1 { font-size: 1.6rem; }
+.muted { color: var(--muted); }
+.badge {
+  background: var(--accent); color: #1c1a17;
+  font-size: 0.72rem; font-weight: 700;
+  padding: 0.1rem 0.45rem; border-radius: 0.4rem; vertical-align: middle;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+.card label { display: block; margin: 0.6rem 0; font-size: 0.9rem; color: var(--muted); }
+.card input, .card textarea {
+  display: block; width: 100%; margin-top: 0.25rem;
+  background: #1f1d1a; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem; font: inherit;
+}
+
+button {
+  background: var(--accent); color: #1c1a17;
+  border: 0; border-radius: 0.4rem;
+  padding: 0.5rem 1rem; font: inherit; font-weight: 600; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+.link { background: none; color: var(--accent); padding: 0; font-weight: 400; }
+.link.danger { color: var(--danger); }
+form.inline { display: inline; }
+
+.flash { padding: 0.6rem 0.9rem; border-radius: 0.4rem; margin: 0.75rem 0; }
+.flash-ok { background: #29371f; border: 1px solid #4a6b32; }
+.flash-error { background: #3a221d; border: 1px solid #7a3a2c; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.tile {
+  display: block; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 0.6rem;
+  padding: 1rem 1.25rem; color: var(--ink);
+}
+.tile:hover { border-color: var(--accent); text-decoration: none; }
+.tile h2 { margin: 0 0 0.4rem; color: var(--accent); font-size: 1.1rem; }
+.tile .count { color: var(--muted); font-size: 0.85rem; }
+
+.postlist, .replylist { list-style: none; padding: 0; }
+.postlist li { padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+.post-title { font-weight: 600; font-size: 1.05rem; }
+.meta { color: var(--muted); font-size: 0.82rem; margin-top: 0.2rem; }
+.body { margin: 0.6rem 0; white-space: normal; }
+
+.masters {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.6rem;
+  margin: 0.5rem 0 1.5rem;
+}
+.master {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 0.5rem; padding: 0.5rem 0.7rem; color: var(--ink);
+}
+.master:hover { border-color: var(--accent); text-decoration: none; }
+.master-head { display: flex; align-items: center; gap: 0.4rem; }
+.crown { width: 16px; height: 12px; flex: none; fill: var(--accent); }
+.master-prof { font-weight: 600; }
+.master-name { word-break: break-word; }
+.master-skill { color: var(--muted); font-size: 0.85rem; }
+
+.recipe-group {
+  margin: 1.25rem 0; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 0.6rem; overflow: hidden;
+}
+.recipe-group h4 {
+  margin: 0; padding: 0.55rem 1rem; color: var(--accent); font-size: 1.05rem;
+  background: rgba(201, 162, 39, 0.08); border-bottom: 1px solid var(--line);
+}
+.recipes { margin: 0; padding: 0.6rem 1rem; list-style: none; }
+.recipes > li { margin: 0.15rem 0; }
+
+/* Category headings (Crafting / Gathering / General) */
+.cat-heading {
+  margin: 1.5rem 0 0.6rem; padding-bottom: 0.3rem; font-size: 1.25rem;
+  border-bottom: 2px solid var(--accent); color: var(--ink);
+}
+
+/* Per-profession roster cards (clear delineation between professions) */
+.prof-table {
+  margin: 0.6rem 0 1rem; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 0.5rem; overflow: hidden;
+}
+.prof-table h3 {
+  margin: 0; padding: 0.5rem 0.9rem; color: var(--accent); font-size: 1.05rem;
+  background: rgba(201, 162, 39, 0.12); border-bottom: 1px solid var(--line);
+}
+
+/* Surplus-to-share table */
+.surplus { margin: 1rem 0 1.75rem; }
+.surplus-table td:first-child { white-space: nowrap; }
+
+/* In-demand mats inside a profession's recipe section */
+.group-demand {
+  padding: 0.5rem 1rem; border-bottom: 1px solid var(--line);
+  background: rgba(192, 86, 63, 0.07);
+}
+.demand-note { margin: 0 0 0.4rem; font-size: 0.78rem; }
+.group-demand .tile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 0.5rem; margin: 0;
+}
+.group-demand .tile-icon, .group-demand .tile-icon img { width: 40px; height: 40px; }
+.group-demand .tile-name { font-size: 0.7rem; max-width: 72px; }
+.prof-table .group-demand {
+  border: 1px solid var(--line); border-radius: 0.4rem; margin: 0.3rem 0 0.5rem 1.4rem;
+}
+
+/* Roster member dropdown rows */
+.member-list { padding: 0.1rem 0.6rem 0.3rem; }
+.member-row + .member-row { border-top: 1px solid var(--line); }
+.member-row > summary {
+  display: flex; align-items: center; gap: 0.6rem; cursor: pointer;
+  padding: 0.4rem 0.1rem; list-style: none;
+}
+.member-row > summary::-webkit-details-marker { display: none; }
+.member-row > summary::before {
+  content: "+"; flex: none; width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 4px; background: #1f1d1a;
+  color: var(--accent); font-weight: 700; font-size: 0.95rem; line-height: 1;
+}
+.member-row[open] > summary::before { content: "\2212"; }  /* minus */
+.member-name { font-weight: 600; }
+.member-row .skill { margin-left: auto; }
+.member-body { padding: 0 0 0.5rem 1.7rem; }
+
+/* Character switcher in the nav */
+.char-switch { position: relative; }
+.char-switch > summary {
+  cursor: pointer; list-style: none; color: var(--accent);
+  padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 0.4rem;
+  background: #1f1d1a; white-space: nowrap;
+}
+.char-switch > summary::-webkit-details-marker { display: none; }
+.char-menu {
+  position: absolute; left: 0; margin-top: 0.25rem; z-index: 20;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 0.5rem;
+  min-width: 200px; padding: 0.25rem; box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+}
+.char-option {
+  display: block; width: 100%; text-align: left; background: none; color: var(--ink);
+  border: 0; border-radius: 0.35rem; padding: 0.4rem 0.5rem; font: inherit; cursor: pointer;
+}
+.char-option:hover { background: #1f1d1a; }
+.char-option.active { color: var(--accent); font-weight: 600; }
+
+/* WoW trade-skill difficulty colours */
+.diff-orange { color: #ff8040; }
+.diff-yellow { color: #f5d000; }
+.diff-green  { color: #4cc24c; }
+.diff-gray   { color: #9a9a9a; }
+
+.legend { font-size: 0.85rem; }
+.legend .diff { margin: 0 0.15rem; font-weight: 600; }
+
+details.recipe > summary {
+  cursor: pointer; font-weight: 600; list-style-position: outside;
+}
+details.recipe > summary::marker { color: var(--muted); }
+.no-reagents { font-weight: 600; padding-left: 1.1rem; display: inline-block; }
+.reagents {
+  margin: 0.2rem 0 0.4rem 1.2rem; padding-left: 0.8rem;
+  color: var(--ink); border-left: 2px solid var(--line);
+}
+.reagents li { margin: 0.05rem 0; font-size: 0.9rem; }
+
+.sort { color: var(--ink); }
+.sort.active { color: var(--accent); }
+.sort:hover { text-decoration: underline; }
+
+.copyable {
+  width: 100%; margin-top: 0.4rem; padding: 0.5rem 0.6rem; font: inherit;
+  background: #1f1d1a; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 0.4rem;
+}
+.inline-form { margin: 1rem 0; }
+button[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.demand {
+  margin: 1rem 0 1.5rem; padding: 0.75rem 1rem;
+  background: rgba(192, 86, 63, 0.10);
+  border: 1px solid var(--line); border-left: 3px solid var(--danger);
+  border-radius: 0.5rem;
+}
+.demand h2 { margin: 0 0 0.3rem; font-size: 1.1rem; }
+
+/* Item tile grid (in-demand resources) */
+.tile-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 0.6rem; margin-top: 0.6rem;
+}
+.item-tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: inherit; text-decoration: none;
+}
+.item-tile:hover .tile-name { color: var(--ink); }
+.tile-icon { position: relative; width: 48px; height: 48px; }
+.tile-icon img {
+  width: 48px; height: 48px; border-radius: 0.35rem;
+  border: 1px solid #000; box-shadow: 0 0 0 1px var(--line);
+  background: #1f1d1a;
+}
+.tile-qty {
+  position: absolute; right: -3px; bottom: -3px;
+  background: #1c1a17; color: var(--accent); font-weight: 700; font-size: 0.78rem;
+  line-height: 1; padding: 0.12rem 0.28rem; border-radius: 0.3rem;
+  border: 1px solid var(--line);
+}
+.tile-name {
+  margin-top: 0.25rem; font-size: 0.74rem; color: var(--muted);
+  max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Wowhead tooltip links keep the surrounding styling (colour/no underline). */
+.wh-link { color: inherit; text-decoration: none; }
+.wh-link:hover { text-decoration: none; }
+.reagents .wh-link { display: inline-block; }
+
+/* Inline recipe/reagent icons */
+.r-icon {
+  width: 18px; height: 18px; vertical-align: -4px; margin-right: 0.35rem;
+  border-radius: 0.2rem; background: #1f1d1a;
+}
+
+.roster { width: 100%; border-collapse: collapse; }
+.roster th, .roster td {
+  text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.skill {
+  display: inline-block; background: #1f1d1a; border: 1px solid var(--line);
+  border-radius: 0.3rem; padding: 0.1rem 0.45rem; margin: 0.1rem 0.2rem 0.1rem 0;
+  font-size: 0.82rem;
+}
+
+/* Item quality colours (Wowhead/WoW convention) */
+.q0 { color: #9d9d9d; }
+.q1 { color: #ece6da; }
+.q2 { color: #1eff00; }
+.q3 { color: #0070dd; }
+.q4 { color: #a335ee; }
+.q5 { color: #ff8000; }
+.q6 { color: #e6cc80; }
+.q7 { color: #00ccff; }
+
+/* Coin amounts */
+.money { white-space: nowrap; }
+.coin { font-variant-numeric: tabular-nums; }
+.coin + .coin { margin-left: 0.2rem; }
+.coin.gold { color: #e6cc80; }
+.coin.silver { color: #d0d0d0; }
+.coin.copper { color: #cd7f32; }
+.coin::after { font-size: 0.8em; margin-left: 0.05rem; opacity: 0.7; }
+.coin.gold::after { content: "g"; }
+.coin.silver::after { content: "s"; }
+.coin.copper::after { content: "c"; }
+
+/* Auction House tab */
+.ah-section { margin-top: 1.5rem; }
+.ah-section h2 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+.ah-table .num { text-align: right; white-space: nowrap; }
+.ah-table tr.unsellable td { opacity: 0.55; }
+.ah-table .tag {
+  display: inline-block; margin-left: 0.4rem; font-size: 0.68rem;
+  text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 0.3rem; padding: 0 0.3rem;
+}
+.ah-grand {
+  display: flex; align-items: baseline; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 0.5rem; padding: 0.7rem 1rem; margin: 1rem 0;
+}
+.ah-grand-label { color: var(--muted); }
+.ah-grand-value { font-size: 1.25rem; font-weight: 700; }
+.ah-built { font-size: 0.78rem; margin-top: 1.5rem; }
+.ah-events {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+  background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 0.5rem; padding: 0.7rem 1rem; margin: 1rem 0;
+}
+.ah-events-label {
+  color: var(--accent); font-weight: 700; margin-right: 0.25rem;
+}
+.ah-event-pill {
+  display: inline-flex; align-items: baseline; gap: 0.4rem;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 0.4rem; padding: 0.2rem 0.55rem; font-size: 0.9rem;
+}
+.ah-event-axis {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.ah-event-pill b { color: #4cc24c; }
+/* Markers in the multiplier column (shown instead of an event %). */
+.ah-vendor-tag { color: var(--accent); border-color: var(--accent); }
+/* Soulbound items can only be vendored; WoW-gold to read as "bound". */
+.ah-soulbound-tag { color: #e6c200; border-color: #e6c20066; }
+/* Poor-quality junk; WoW grey. */
+.ah-junk-tag { color: #9d9d9d; border-color: #9d9d9d66; }
+/* slump pills read as "down": red-tinted border to set them apart from buffs. */
+.ah-event-pill.down { border-color: #d9534f66; }
+
+/* price movement: green up for a premium, red down for a discount. */
+.price-up { color: #4cc24c; font-weight: 700; white-space: nowrap; }
+.price-down { color: #d9534f; font-weight: 700; white-space: nowrap; }
+
+/* Auction House: web listing */
+.ah-table th.ah-pick, .ah-table td.ah-pick { width: 1.6rem; text-align: center; }
+.ah-status { display: flex; align-items: center; gap: 0.5rem; margin: 0.8rem 0; }
+.dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
+.dot-online { background: #c0392b; box-shadow: 0 0 0 2px #c0392b33; }
+.dot-offline { background: #4a6b32; box-shadow: 0 0 0 2px #4a6b3233; }
+.ah-deposit-line { display: flex; justify-content: space-between; margin: 0; }
+.ah-deposit-line .ah-total-deposit { color: var(--ink); }
+.action-card .link { display: inline-block; text-align: center; }
+.ah-list-table { overflow-x: auto; display: block; }
+/* "Refresh inventory" control: a force-save trigger above the item lists. */
+.ah-refresh { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  margin: -0.5rem 0 1rem; }
+.ah-refresh form { margin: 0; }
+.ah-refresh-btn { background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--accent); font: inherit; }
+.ah-refresh-btn:hover { text-decoration: underline; }
+.ah-refresh .muted { font-size: 0.85rem; }
+/* "Select junk" toggle in the Sell-items card: a link-styled button. */
+.ah-junk-btn { display: block; background: none; border: 0; padding: 0;
+  margin: 0 0 0.6rem; cursor: pointer; color: var(--accent); font: inherit; }
+.ah-junk-btn:hover { text-decoration: underline; }
+/* Instant-vendor section on the review page: read-only, set apart from auctions. */
+.ah-vendor { margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.ah-vendor h2 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+.ah-vendor-table td.num { color: var(--muted); }
+.ah-stack input[type="number"] {
+  -webkit-appearance: none; -moz-appearance: textfield; appearance: textfield;
+  background: transparent; border: none; border-bottom: 1px solid var(--line);
+  color: var(--ink); font: inherit; font-size: 0.9em;
+  text-align: right; padding: 0 0.1rem 0.05rem; width: 2.6rem;
+}
+.ah-stack input[type="number"]::-webkit-outer-spin-button,
+.ah-stack input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ah-stack input[type="number"]:focus { outline: none; border-bottom-color: var(--accent); }
+.ah-stack .ah-coin { color: var(--muted); margin: 0 0.2rem; font-size: 0.85em; }
+.ah-stack-note { font-size: 0.75em; margin-top: 0.15rem; text-align: right; }
+.ah-list-table .ah-price { white-space: nowrap; }
+/* Inline g/s/c inputs: blend with the table, no spinners */
+.ah-price input[type="number"] {
+  -webkit-appearance: none; -moz-appearance: textfield; appearance: textfield;
+  background: transparent; border: none; border-bottom: 1px solid var(--line);
+  color: var(--ink); font: inherit; font-size: 0.85em;
+  text-align: right; padding: 0 0.1rem 0.05rem; margin-left: 0.15rem;
+  width: 2rem;   /* silver / copper (0-99) */
+}
+/* Gold has no max attribute; give it a bit more room */
+.ah-price input[type="number"]:not([max]) { width: 3rem; }
+.ah-price input[type="number"]::-webkit-outer-spin-button,
+.ah-price input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ah-price input[type="number"]:focus {
+  outline: none; border-bottom-color: var(--accent);
+}
+.ah-price .ah-coin { color: var(--muted); margin: 0 0.3rem 0 0.05rem; font-size: 0.8em; }
+.ah-row-deposit, .ah-total-deposit { font-variant-numeric: tabular-nums; }
+
+/* Downloads listing */
+.downloads td:nth-child(2), .downloads td:nth-child(3) { white-space: nowrap; }
+.downloads td:last-child { text-align: right; }
+a.badge { text-decoration: none; }
+a.badge:hover { filter: brightness(1.08); text-decoration: none; }
+
+/* News desk -- newspaper styling */
+.news-masthead {
+  text-align: center;
+  border-top: 3px double var(--ink);
+  border-bottom: 3px double var(--ink);
+  margin: 0 0 1.4rem; padding: 0.5rem 0 0.55rem;
+}
+.news-title {
+  margin: 0.1rem 0 0.15rem;
+  font-family: Georgia, "Times New Roman", serif; font-weight: 800;
+  font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.04;
+  letter-spacing: 0.01em;
+}
+.news-edition {
+  margin: 0; font-size: 0.78rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+}
+.news-nav {
+  margin-top: 0.45rem; display: flex; gap: 1.25rem;
+  justify-content: center; flex-wrap: wrap;
+  font-size: 0.8rem; letter-spacing: 0.04em;
+}
+
+.news-story {
+  border-top: 2px solid var(--line);
+  padding: 1.5rem 0 0.6rem;
+}
+.news-story:first-of-type { border-top: none; padding-top: 0.2rem; }
+
+.news-kicker {
+  margin: 0; color: var(--accent); font-weight: 700; text-align: center;
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.news-headline {
+  margin: 0.25rem 0 0.35rem; text-align: center; color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif; font-weight: 800;
+  font-size: 2rem; line-height: 1.12;
+}
+/* The lead story gets front-page sizing. */
+.news-story:first-of-type .news-headline { font-size: 2.7rem; }
+.news-dek {
+  margin: 0 auto 0.55rem; max-width: 60ch; text-align: center;
+  font-size: 1.1rem; color: var(--muted); font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.news-byline {
+  margin: 0 0 1rem; font-size: 0.78rem; color: var(--muted);
+  text-align: center; text-transform: uppercase; letter-spacing: 0.05em;
+  padding-bottom: 0.7rem; border-bottom: 1px solid var(--line);
+}
+.news-byline strong { color: var(--ink); }
+.news-dateline { letter-spacing: 0.06em; }
+
+/* The body splits down the middle, newspaper-style. */
+.news-body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.02rem; line-height: 1.6; text-align: justify; hyphens: auto;
+  column-count: 2; column-gap: 2.2rem; column-rule: 1px solid var(--line);
+}
+.news-body p { margin: 0 0 0.8rem; }
+.news-body p:first-child::first-letter {
+  float: left; font-size: 3.1rem; line-height: 0.78;
+  padding: 0.1rem 0.5rem 0 0; color: var(--accent);
+  font-weight: 800; font-family: Georgia, "Times New Roman", serif;
+}
+
+@media (max-width: 720px) {
+  .news-body { column-count: 1; }
+  .news-story:first-of-type .news-headline { font-size: 2rem; }
+  .obit-list { grid-template-columns: 1fr; }
+}
+
+/* Obituaries column -- set off from the celebratory exploits above it */
+.obituaries {
+  margin-top: 2.5rem; padding-top: 1.25rem;
+  border-top: 2px solid rgba(255, 255, 255, 0.12);
+}
+.obit-heading {
+  text-align: center; letter-spacing: 0.18em; text-transform: uppercase;
+  font-size: 1.1rem; margin: 0;
+}
+.obit-standfirst { text-align: center; margin: 0.25rem 0 1.5rem; }
+/* Obituaries sit side by side -- two columns, one whole notice per column,
+   never split or wrapped across the gap. Grid cells keep each entry
+   self-contained. Collapses to a single column on narrow screens. */
+.obit-list {
+  display: grid; align-items: start; gap: 1.5rem 2.2rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.obit-list .news-story-compact {
+  border-top: none; padding: 0; break-inside: avoid; text-align: center;
+}
+.obit-list .news-headline { font-size: 1.4rem; }
+/* Obituary body: a single short paragraph or verse -- preserve the writer's
+   line breaks (for verse) and don't flow it into the market multi-column style. */
+.obit-body { white-space: pre-line; column-count: 1; }
+
+/* Chronicle timeline */
+ul.chronicle { list-style: none; margin: 0 0 1.5rem; padding: 0; }
+.chron-row {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding: 0.25rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.chron-time { flex: 0 0 3.2rem; font-variant-numeric: tabular-nums; }
+.chron-icon { flex: 0 0 1.4rem; text-align: center; }
+.chron-text { flex: 1 1 auto; }
+.chron-lvl { font-size: 0.85em; }
