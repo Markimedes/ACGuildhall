@@ -13,8 +13,9 @@ import pytest
 
 import app as app_module
 import db
+from config import TestingConfig
 
-# Minimal env required by load_config(); the DB creds are inert because
+# Minimal env required by Config.validate(); the DB creds are inert because
 # init_pool is stubbed below.
 _REQUIRED_ENV = {
     "GUILDHALL_SECRET_KEY": "test-secret-key",
@@ -30,9 +31,9 @@ def app(monkeypatch):
         monkeypatch.setenv(key, value)
     # Never open a real connection pool during tests.
     monkeypatch.setattr(db, "init_pool", lambda cfg: None)
-    application = app_module.create_app()
-    application.config.update(TESTING=True)
-    return application
+    # TestingConfig reads the env we just set; pass it explicitly so we exercise
+    # the create_app(config) path.
+    return app_module.create_app(TestingConfig())
 
 
 @pytest.fixture

@@ -26,7 +26,8 @@ import sys
 import ahservice
 import db
 import exploits
-from app import NEWS_MARKET_CATEGORIES, load_config, todays_news
+from app import NEWS_MARKET_CATEGORIES, todays_news
+from config import ProductionConfig
 from news_ai import NewsDesk
 
 
@@ -34,10 +35,13 @@ log = logging.getLogger("guildhall.news.cron")
 
 
 def setup() -> NewsDesk:
-    """Load config, open the DB pool once, and build the desk. Call this once;
-    a long-lived scheduler reuses the returned desk across daily runs."""
-    cfg = load_config()
-    db.init_pool(cfg["database"])
+    """Build config from the environment, open the DB pool once, configure the
+    service modules this process uses, and build the desk. Call this once; a
+    long-lived scheduler reuses the returned desk across daily runs."""
+    cfg = ProductionConfig().validate()
+    db.init_pool(cfg.DATABASE)
+    ahservice.configure(cfg.AHPRICING)
+    exploits.configure(cfg.EXPLOITS)
     return NewsDesk.from_env()
 
 

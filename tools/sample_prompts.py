@@ -146,6 +146,12 @@ def main() -> int:
 
     _load_env_file(args.env)
     db.init_pool(_db_config())
+    # The service modules no longer read env at import; hand them their config
+    # from the same env we just loaded (config.py has no Flask dependency).
+    from config import Config
+    _cfg = Config()
+    ahservice.configure(_cfg.AHPRICING)
+    exploits.configure(_cfg.EXPLOITS)
 
     covered = (datetime.date.fromisoformat(args.date)
                - datetime.timedelta(days=1)).isoformat()

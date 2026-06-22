@@ -15,15 +15,27 @@ Config:
 from __future__ import annotations
 
 import json
-import os
 import urllib.parse
 import urllib.request
 
-URL = os.environ.get("GUILDHALL_AHPRICING_URL", "http://ahpricingservice:8089/price")
-TIMEOUT = float(os.environ.get("GUILDHALL_AHPRICING_TIMEOUT", "1.5"))
+# Static defaults; overridden by configure() at startup so config is never read
+# at import time. The /health and /events URLs are derived from the base.
+URL = "http://ahpricingservice:8089/price"
+TIMEOUT = 1.5
 _BASE = URL[: -len("/price")] if URL.endswith("/price") else URL
 _HEALTH_URL = _BASE + "/health" if URL.endswith("/price") else URL
 _EVENTS_URL = _BASE + "/events"
+
+
+def configure(cfg: dict) -> None:
+    """Set the pricing-service URL/timeout from a config dict (see
+    config.Config.AHPRICING) and re-derive the /health and /events URLs."""
+    global URL, TIMEOUT, _BASE, _HEALTH_URL, _EVENTS_URL
+    URL = cfg.get("url") or URL
+    TIMEOUT = float(cfg.get("timeout") or TIMEOUT)
+    _BASE = URL[: -len("/price")] if URL.endswith("/price") else URL
+    _HEALTH_URL = _BASE + "/health" if URL.endswith("/price") else URL
+    _EVENTS_URL = _BASE + "/events"
 
 
 def available() -> bool:

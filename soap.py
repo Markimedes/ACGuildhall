@@ -21,15 +21,26 @@ Config (all GUILDHALL_SOAP_*):
 from __future__ import annotations
 
 import base64
-import os
 import urllib.request
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
-URL = os.environ.get("GUILDHALL_SOAP_URL", "").strip()
-USER = os.environ.get("GUILDHALL_SOAP_USER", "")
-PASS = os.environ.get("GUILDHALL_SOAP_PASS", "")
-TIMEOUT = float(os.environ.get("GUILDHALL_SOAP_TIMEOUT", "5"))
+# Static defaults; overridden by configure() at startup so config is never read
+# at import time. Empty URL = SOAP disabled.
+URL = ""
+USER = ""
+PASS = ""
+TIMEOUT = 5.0
+
+
+def configure(cfg: dict) -> None:
+    """Set the SOAP endpoint and credentials from a config dict (see
+    config.Config.SOAP). Called once at app/scheduler startup."""
+    global URL, USER, PASS, TIMEOUT
+    URL = (cfg.get("url") or "").strip()
+    USER = cfg.get("user") or ""
+    PASS = cfg.get("password") or ""
+    TIMEOUT = float(cfg.get("timeout") or 5.0)
 
 _ENVELOPE = (
     '<?xml version="1.0" encoding="utf-8"?>'

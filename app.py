@@ -13,7 +13,6 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
-import os
 import re
 import secrets
 import time
@@ -43,6 +42,7 @@ import professions
 import recipes
 import soap
 import srp6
+from config import Config, ProductionConfig
 from news_ai import NewsDesk
 from professions import profession_name
 
@@ -124,106 +124,20 @@ def resolve_download(dirpath: str, name: str) -> Path | None:
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
-def _env_bool(name: str, default: bool) -> bool:
-    val = os.environ.get(name)
-    if val is None:
-        return default
-    return val.strip().lower() in ("1", "true", "yes", "on")
+def create_app(config: Config | None = None) -> Flask:
+    cfg = config if config is not None else ProductionConfig()
+    cfg.validate()
 
-
-def load_config() -> dict:
-    """Build the config from GUILDHALL_* environment variables.
-
-    Everything comes from the environment (see .env.example, which docker-compose
-    loads), so no secrets file is baked into or mounted onto the image.
-    """
-    cfg: dict = {}
-    app_cfg = cfg.setdefault("app", {})
-    db_cfg = cfg.setdefault("database", {})
-
-    env = os.environ
-    if "GUILDHALL_SECRET_KEY" in env:
-        app_cfg["secret_key"] = env["GUILDHALL_SECRET_KEY"]
-    if "GUILDHALL_HOST" in env:
-        app_cfg["host"] = env["GUILDHALL_HOST"]
-    if "GUILDHALL_PORT" in env:
-        app_cfg["port"] = int(env["GUILDHALL_PORT"])
-    app_cfg["behind_tls"] = _env_bool("GUILDHALL_BEHIND_TLS", app_cfg.get("behind_tls", False))
-    app_cfg["trust_proxy"] = _env_bool("GUILDHALL_TRUST_PROXY", app_cfg.get("trust_proxy", False))
-    if "GUILDHALL_INVITE_TOKENS_DEFAULT" in env:
-        app_cfg["invite_tokens_default"] = int(env["GUILDHALL_INVITE_TOKENS_DEFAULT"])
-    if "GUILDHALL_INVITE_TTL_HOURS" in env:
-        app_cfg["invite_ttl_hours"] = int(env["GUILDHALL_INVITE_TTL_HOURS"])
-    if "GUILDHALL_NEW_ACCOUNT_EXPANSION" in env:
-        app_cfg["new_account_expansion"] = int(env["GUILDHALL_NEW_ACCOUNT_EXPANSION"])
-    if "GUILDHALL_ADMIN_GMLEVEL" in env:
-        app_cfg["admin_gmlevel"] = int(env["GUILDHALL_ADMIN_GMLEVEL"])
-    if "GUILDHALL_PUBLIC_BASE_URL" in env:
-        app_cfg["public_base_url"] = env["GUILDHALL_PUBLIC_BASE_URL"]
-    if "GUILDHALL_DEMAND_REFRESH_MINUTES" in env:
-        app_cfg["demand_refresh_minutes"] = int(env["GUILDHALL_DEMAND_REFRESH_MINUTES"])
-    if "GUILDHALL_AH_DEPOSIT_PERCENT" in env:
-        app_cfg["ah_deposit_percent"] = float(env["GUILDHALL_AH_DEPOSIT_PERCENT"])
-    if "GUILDHALL_AH_DEPOSIT_RATE" in env:
-        app_cfg["ah_deposit_rate"] = float(env["GUILDHALL_AH_DEPOSIT_RATE"])
-    if "GUILDHALL_AH_REFRESH_SECONDS" in env:
-        app_cfg["ah_refresh_seconds"] = int(env["GUILDHALL_AH_REFRESH_SECONDS"])
-    if "GUILDHALL_DOWNLOADS_DIR" in env:
-        app_cfg["downloads_dir"] = env["GUILDHALL_DOWNLOADS_DIR"]
-    if "GUILDHALL_DOWNLOADS_INTERNAL_PREFIX" in env:
-        app_cfg["downloads_internal_prefix"] = env["GUILDHALL_DOWNLOADS_INTERNAL_PREFIX"]
-
-    if "GUILDHALL_DB_HOST" in env:
-        db_cfg["host"] = env["GUILDHALL_DB_HOST"]
-    if "GUILDHALL_DB_PORT" in env:
-        db_cfg["port"] = int(env["GUILDHALL_DB_PORT"])
-    if "GUILDHALL_DB_USER" in env:
-        db_cfg["user"] = env["GUILDHALL_DB_USER"]
-    if "GUILDHALL_DB_PASSWORD" in env:
-        db_cfg["password"] = env["GUILDHALL_DB_PASSWORD"]
-    if "GUILDHALL_DB_POOL_SIZE" in env:
-        db_cfg["pool_size"] = int(env["GUILDHALL_DB_POOL_SIZE"])
-
-    if not app_cfg.get("secret_key"):
-        raise RuntimeError("GUILDHALL_SECRET_KEY is required")
-    for required in ("host", "user", "password"):
-        if not db_cfg.get(required):
-            raise RuntimeError(f"GUILDHALL_DB_{required.upper()} is required")
-    return cfg
-
-
-def create_app() -> Flask:
-    cfg = load_config()
-    db.init_pool(cfg["database"])
+    db.init_pool(cfg.DATABASE)
+    soap.configure(cfg.SOAP)
+    ahservice.configure(cfg.AHPRICING)
 
     app = Flask(__name__)
-    app_cfg = cfg.get("app", {})
-    app.secret_key = app_cfg["secret_key"]
-    app.config.update(
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=app_cfg.get("behind_tls", False),
-        INVITE_TOKENS_DEFAULT=app_cfg.get("invite_tokens_default", 3),
-        INVITE_TTL_HOURS=app_cfg.get("invite_ttl_hours", 12),
-        NEW_ACCOUNT_EXPANSION=app_cfg.get("new_account_expansion", 2),
-        ADMIN_GMLEVEL=app_cfg.get("admin_gmlevel", 3),
-        PUBLIC_BASE_URL=(app_cfg.get("public_base_url") or "").rstrip("/"),
-        DEMAND_REFRESH_MINUTES=app_cfg.get("demand_refresh_minutes", 360),
-        # Auction deposit preview (authoritative value is computed server-side).
-        AH_DEPOSIT_PERCENT=app_cfg.get("ah_deposit_percent", 5.0),
-        AH_DEPOSIT_RATE=app_cfg.get("ah_deposit_rate", 1.0),
-        # Min seconds between user-triggered inventory refreshes (force-saves),
-        # per character.
-        AH_REFRESH_SECONDS=app_cfg.get("ah_refresh_seconds", 60),
-        DOWNLOADS_DIR=app_cfg.get("downloads_dir", "/media/plex/downloads"),
-        # Internal nginx location to hand large files off to via X-Accel-Redirect.
-        # Empty = serve through Flask (fine for the dev server / small files).
-        DOWNLOADS_INTERNAL_PREFIX=(app_cfg.get("downloads_internal_prefix") or ""),
-    )
+    app.config.from_object(cfg)
 
     # Behind nginx: trust one proxy hop so request.remote_addr (rate limiting)
     # and the URL scheme/Secure cookie reflect the real client, not the proxy.
-    if app_cfg.get("trust_proxy", False):
+    if cfg.TRUST_PROXY:
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
@@ -1548,9 +1462,8 @@ def _flash_refresh_result(ok: bool, out: str) -> None:
 
 if __name__ == "__main__":
     application = create_app()
-    cfg = load_config().get("app", {})
     application.run(
-        host=cfg.get("host", "127.0.0.1"),
-        port=cfg.get("port", 5000),
+        host=application.config["HOST"],
+        port=application.config["PORT"],
         debug=False,
     )

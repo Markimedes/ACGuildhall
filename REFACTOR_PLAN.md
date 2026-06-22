@@ -92,25 +92,36 @@ Exit criteria: `pytest` green against the current, un-refactored app. **MET** �
 Replace the hand-rolled `load_config()` dict-builder and the import-time
 `os.environ.get` module globals with standard Config classes.
 
-- [ ] Create `config.py` with a base `Config` reading every `GUILDHALL_*` var as
-      class attributes with defaults, plus `DevelopmentConfig`, `TestingConfig`
-      (`TESTING=True`, CSRF/limiter disabled or in-memory, no external services),
-      and `ProductionConfig`.
-- [ ] Move `SESSION_COOKIE_*`, `INVITE_*`, `NEW_ACCOUNT_EXPANSION`,
+- [x] Created `config.py` with `Config` (env read at *instantiation*, not import),
+      plus `DevelopmentConfig`, `TestingConfig` (`TESTING=True`), `ProductionConfig`.
+      `Config.validate()` does the fail-fast secret/DB-creds check. Service slices
+      exposed as `DATABASE`/`SOAP`/`AHPRICING`/`EXPLOITS` dicts.
+- [x] Moved `SESSION_COOKIE_*`, `INVITE_*`, `NEW_ACCOUNT_EXPANSION`,
       `ADMIN_GMLEVEL`, `PUBLIC_BASE_URL`, `DEMAND_REFRESH_MINUTES`, `AH_*`,
-      `DOWNLOADS_*`, `MAX_CONTENT_LENGTH` (NEW — cap the auction JSON payload)
-      into it.
-- [ ] **Kill the import-time config reads** in `soap.py`, `ahservice.py`,
-      `exploits.py`. These currently freeze `URL`/`TIMEOUT`/limits at import,
-      which is what breaks testability. Convert each module to read from
-      `current_app.config` (or accept config via an `init_app`/init function
-      called from the factory). This is the keystone change that makes the
-      factory actually mean something.
-- [ ] Factory does `app.config.from_object(config_class)`; keep the
-      "required secret/DB creds" assertions, but raise from config validation.
+      `DOWNLOADS_*`, and `MAX_CONTENT_LENGTH` (NEW, 512 KB — caps the auction JSON
+      payload) into `Config`.
+- [x] **Killed the import-time config reads** in `soap.py`, `ahservice.py`,
+      `exploits.py`. Chose the `configure(cfg)` injection pattern (like
+      `db.init_pool`) over `current_app.config`, because the news-scheduler sidecar
+      and the CLI tools use these modules with no app context. Static defaults at
+      import → `configure()` overrides at startup. Wired into BOTH entry points:
+      `create_app()` (soap+ahservice) and `generate_news.setup()` (ahservice+
+      exploits); `tools/sample_prompts.py` calls them after loading its `.env`
+      (`clear_news_cache.py` only uses the config-independent `exploits.is_obituary`,
+      so it was left untouched).
+- [x] Factory does `app.config.from_object(cfg)` (an instance); `cfg.validate()`
+      raises on missing secret/DB creds. `__main__` now reads host/port from
+      `app.config` instead of re-loading config (also clears a Phase 4 item).
 
 Exit criteria: `create_app(TestingConfig)` and `create_app(ProductionConfig)`
 both work; Phase 0 tests still green; no module reads `os.environ` at import.
+**MET** — 19 tests green; all entry points import with no env/DB; production
+`create_app` verified (config keys land in `app.config`, services configured,
+`validate()` fails fast). Caveats: `news_ai.from_env(env=os.environ)` keeps a
+default-arg *reference* to the live mapping (read lazily at call time, not frozen
+— acceptable); `news_scheduler.py` is a standalone daemon entry script and still
+reads its own `GUILDHALL_NEWS_*` at the top (not imported by the app; fold into
+`Config` later if desired).
 
 ---
 
@@ -187,8 +198,47 @@ dependencies on factory-local helpers.
       (login, invite redeem) unprefixed where the current URLs must be preserved
       — invite links already in the wild must not break.
 
+### Directory & module restructuring (do in this SAME pass)
+
+Phase 3 already moves files into a package and rewrites imports, so do ALL the
+file relocations here — doing them piecemeal earlier means a second round of
+import/path edits. Settled layout: a `guildhall/` package for app+blueprints, a
+`data/` area for the data-access/service modules, `tools/` for offline scripts.
+
+Runtime-vs-tooling map (traced 2026-06-22 — drives what moves where):
+
+- **Runtime (app):** `app.py`, `db.py`, `srp6.py`, `soap.py`, `ahprices.py`,
+  `ahservice.py`, `professions.py`, `recipes.py`, `news_ai.py`, `news_prompts.py`.
+- **Runtime (news scheduler sidecar):** `news_scheduler.py` → `generate_news.py`
+  → `exploits.py` → `achievements.py`, `chartypes.py`, `weapons.py`.
+  (`chartypes.py`/`weapons.py` look like stray data modules but ARE runtime deps.)
+- **Offline tooling only (NOT imported at runtime):** `build_recipes.py`,
+  `build_item_icons.py`, `build_achievements.py`. The app reads their committed
+  JSON output, never the scripts. The latter two `import build_recipes`, so the
+  three move together. Already-tooling: `tools/clear_news_cache.py`,
+  `tools/sample_prompts.py`.
+
+Path gotchas to handle during the moves (these are why a plain `git mv` breaks):
+
+- [ ] **JSON data loads via `Path(__file__).with_name(...)`** — `item_icons.json`
+      (ahprices), `recipes.json`+`vendor_items.json` (recipes), `achievements.json`
+      (achievements). Each JSON must move ALONGSIDE its loader module, or the load
+      path breaks.
+- [ ] **Build scripts use `__file__`-relative input AND output**: `--out` defaults
+      to `Path(__file__).with_name("X.json")` (writes next to the script) and
+      `discover_dbc_dir()` anchors on `__file__.parent.parent`
+      (→ `azerothcore/env/dist/data/dbc`). Moving them into `tools/` requires
+      re-anchoring both to the repo root explicitly, so regenerated JSON lands
+      where the runtime modules read it and DBC discovery still resolves.
+      NOTE: regeneration can't be verified without the client DBCs present — fix
+      the paths, then do one regen pass next time you're near the client data.
+- [ ] **Tests follow the layout**: `tests/conftest.py` currently does `import app`
+      with `pythonpath = ["."]`; update imports/pythonpath when `app` becomes a
+      package and modules move under `data/`.
+
 Exit criteria: all Phase 0 tests green against blueprint URLs; manual smoke of
-every nav link; existing invite links still resolve.
+every nav link; existing invite links still resolve; build scripts live in
+`tools/` with repo-root-anchored paths (regen pass deferred until DBCs available).
 
 ---
 
