@@ -6,6 +6,7 @@ reagents, the surplus matcher, and individual player profiles. Mounted at
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from flask import Blueprint, abort, current_app, render_template
 from flask_login import login_required
@@ -52,7 +53,6 @@ def _player_demand(guid, skill_values, known):
         lst.sort(key=lambda d: (-d["need"], d["name"]))
         out[skill] = lst
     db.demand_store(guid, json.dumps({str(k): v for k, v in out.items()}))
-    from datetime import datetime
     return out, datetime.now()
 
 

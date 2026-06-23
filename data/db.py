@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 import mysql.connector
+from flask import g, has_app_context
 from mysql.connector import pooling
 
 from .professions import PROFESSION_SKILL_IDS
@@ -35,8 +36,42 @@ def init_pool(cfg: dict) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Connection lifecycle
+#
+# Inside a Flask request a single pooled connection is reused for every query
+# and returned to the pool by ``close_connection`` (registered on the app's
+# ``teardown_appcontext`` in the factory). Outside an app context -- the news
+# sidecar scripts -- each query borrows and immediately returns its own
+# connection, so the pool is shared without leaning on request scope.
+# ---------------------------------------------------------------------------
+def _get_connection():
+    """The request-scoped pooled connection, or a fresh one outside a request."""
+    if has_app_context():
+        conn = getattr(g, "_db_conn", None)
+        if conn is None:
+            conn = g._db_conn = _pool.get_connection()
+        return conn
+    return _pool.get_connection()
+
+
+def _release(conn) -> None:
+    """Return ``conn`` to the pool unless it is the request-scoped one (which
+    ``close_connection`` releases at the end of the request)."""
+    if has_app_context() and getattr(g, "_db_conn", None) is conn:
+        return
+    conn.close()
+
+
+def close_connection(exc=None) -> None:
+    """teardown_appcontext hook: release the request's pooled connection."""
+    conn = g.pop("_db_conn", None)
+    if conn is not None:
+        conn.close()
+
+
 def _query(sql: str, params: tuple = ()) -> list[dict[str, Any]]:
-    conn = _pool.get_connection()
+    conn = _get_connection()
     try:
         cur = conn.cursor(dictionary=True)
         cur.execute(sql, params)
@@ -44,7 +79,7 @@ def _query(sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         cur.close()
         return rows
     finally:
-        conn.close()
+        _release(conn)
 
 
 def _query_one(sql: str, params: tuple = ()) -> Optional[dict[str, Any]]:
@@ -53,16 +88,29 @@ def _query_one(sql: str, params: tuple = ()) -> Optional[dict[str, Any]]:
 
 
 def _execute(sql: str, params: tuple = ()) -> int:
-    """Run a write; return lastrowid (for INSERT) or affected rowcount."""
-    conn = _pool.get_connection()
+    """Run a write (UPDATE/DELETE/upsert); return the affected rowcount."""
+    conn = _get_connection()
     try:
         cur = conn.cursor()
         cur.execute(sql, params)
-        result = cur.lastrowid or cur.rowcount
+        rowcount = cur.rowcount
         cur.close()
-        return result
+        return rowcount
     finally:
-        conn.close()
+        _release(conn)
+
+
+def _insert(sql: str, params: tuple = ()) -> int:
+    """Run an INSERT; return the new AUTO_INCREMENT id (lastrowid)."""
+    conn = _get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        new_id = cur.lastrowid
+        cur.close()
+        return new_id
+    finally:
+        _release(conn)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +244,7 @@ def get_reply(reply_id: int) -> Optional[dict[str, Any]]:
 def create_post(
     guildid: int, feed: str, author_guid: int, title: str, body: str
 ) -> int:
-    return _execute(
+    return _insert(
         "INSERT INTO guildhall.guild_post "
         "(guildid, feed, author_guid, title, body) VALUES (%s, %s, %s, %s, %s)",
         (guildid, feed, author_guid, title, body),
@@ -204,7 +252,7 @@ def create_post(
 
 
 def create_reply(post_id: int, author_guid: int, body: str) -> int:
-    return _execute(
+    return _insert(
         "INSERT INTO guildhall.guild_post_reply "
         "(post_id, author_guid, body) VALUES (%s, %s, %s)",
         (post_id, author_guid, body),
@@ -902,7 +950,7 @@ def allowance_list() -> list[dict[str, Any]]:
 
 
 def invite_create(account_id: int, token_hash: bytes, ttl_hours: int) -> int:
-    return _execute(
+    return _insert(
         "INSERT INTO guildhall.invite "
         "(token_hash, inviter_account_id, expires_at) "
         "VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL %s HOUR))",

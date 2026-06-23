@@ -61,8 +61,9 @@ moving anything.
       matching `Werkzeug>=3.1` floor (replaces the loose `Flask>=3.0`), and a
       `dev` extra with `pytest`. NOTE: `uv` is not installed on this box, so no
       uv lockfile yet — used the existing venv's pip. Generating a uv lockfile
-      and switching the Dockerfile off `requirements.txt` is deferred to the
-      deploy cutover (Phase 4); `requirements.txt` stays valid until then. The
+      and switching the Dockerfile off `requirements.txt` is deferred to a
+      deploy cutover (blocked on `uv`, not on the Phase 4 polish, which has since
+      landed without touching it); `requirements.txt` stays valid until then. The
       Phase 2 extensions (flask-login / flask-wtf / flask-limiter) get added to
       `dependencies` when that phase lands.
 - [x] Stand up `tests/conftest.py`: `app` fixture builds a real `create_app()`
@@ -175,7 +176,8 @@ Tests: the Phase 0 characterization tests were updated to the new mechanism
 (Flask-WTF signed CSRF token in the `csrf_token` fixture; Flask-Login `_user_id`
 session key + a `get_account_by_id` stub for the loader) — they assert the same
 behavior, 19 still green. New runtime deps added to BOTH `pyproject.toml` and
-`requirements.txt` (the Docker image still installs from the latter until Phase 4).
+`requirements.txt` (the Docker image still installs from the latter until the
+`uv` deploy cutover — see Phase 1's pyproject note; not part of the Phase 4 polish).
 
 Exit criteria: CSRF, auth, and rate-limit behavior tests from Phase 0 still pass;
 no mutable runtime state in `app.config`; rate limit is shared across workers (or
@@ -276,23 +278,64 @@ the auction blueprint until a real second consumer appears.
 
 ## Phase 4 — Polish
 
-- [ ] **Custom error handlers** (`@app.errorhandler` for 400/403/404/429/500)
+- [x] **Custom error handlers** (`@app.errorhandler` for 400/403/404/429/500)
       rendering styled templates instead of Werkzeug defaults. Several routes
       `abort(404)`/`abort(403)` today and get an unstyled page.
-- [ ] **Hoist function-local imports** (`current_app`, `datetime.date`,
+- [x] **Hoist function-local imports** (`current_app`, `datetime.date`,
       `itertools.groupby`, etc.) to module top now that the closure is gone and
       the cycles are broken.
-- [ ] **DB connection lifecycle**: bind the pool to the app and scope a
+- [x] **DB connection lifecycle**: bind the pool to the app and scope a
       connection to the request via `g` + `teardown_appcontext`, instead of the
       module global `_pool` + per-query get/close. Tighten `_execute`'s ambiguous
       `lastrowid or rowcount` return (split into `insert()` vs `execute()`).
       Keep raw SQL + multi-schema — do **not** introduce an ORM.
-- [ ] **`__main__` cleanup**: dev entrypoint should not call `load_config()`
+- [x] **`__main__` cleanup**: dev entrypoint should not call `load_config()`
       twice; read host/port from `app.config`. Move gunicorn target to `wsgi.py`.
-- [ ] Optional: per-blueprint `templates/` folders.
+- [ ] Optional: per-blueprint `templates/` folders. **Skipped** — templates are
+      flat, shared (every page extends one `base.html`), and several are reused
+      across areas (`news.html` by news index+archive). Splitting them buys
+      nothing here and would only scatter the shell; left flat by design.
+
+**MET.** Full suite green (**22 passed**, was 19 — added `tests/test_db_lifecycle.py`
+pinning the new connection lifecycle), every page smoke-renders 200, both
+entrypoints import.
+
+- **Error handlers** (`guildhall/errors.py`, `register_error_handlers(app)`):
+  400/403/404/429/500 render `templates/error.html` (extends `base.html`, so
+  error pages keep the shell/nav) with the original status preserved — verified
+  404→styled 404, non-admin→styled 403, and the login rate limit→styled 429.
+  CSP/security headers still apply (they ride `after_request`).
+- **Function-local imports**: only two were genuine deadweight and got hoisted —
+  `itertools.groupby` (core.chronicle), `datetime` (roster). Deliberately LEFT
+  local: the `ProxyFix` import (conditional on `TRUST_PROXY`), the factory's late
+  blueprint imports (idiomatic registration order), `srp6`'s `hmac` (out of
+  scope), and `news_ai`'s `google.genai` (genuinely optional dep — top-level
+  import would break the offline news desk). `current_app` was already top-level
+  everywhere (multi-line `from flask import (...)`), no change needed.
+- **DB lifecycle** (`data/db.py`): added `_get_connection()` / `_release()` /
+  `close_connection()`. Inside a request a single pooled connection is cached on
+  `g._db_conn` and reused by every query, then returned to the pool once by
+  `app.teardown_appcontext(db.close_connection)` (registered in the factory).
+  Outside an app context (the news sidecars) each query borrows-and-returns its
+  own, so `_pool` stays a module global the sidecars can use without a Flask app.
+  Split the ambiguous `_execute` into `_execute` (returns `rowcount`, for
+  UPDATE/DELETE/upserts) and `_insert` (returns `lastrowid`, for the three
+  INSERTs whose new id matters: `create_post`/`create_reply`/`invite_create`).
+  `redeem_invite_and_create_account` keeps its own dedicated transactional
+  connection (it flips `autocommit`), unchanged. Raw SQL + multi-schema intact;
+  no ORM.
+- **Entrypoint**: already clean from Phase 3 (`wsgi.py` reads
+  `app.config["HOST"]/["PORT"]`; `create_app` validates config once). No change.
+- **Nav regression fix (found during Phase 4 polish)**: Phase 2's Flask-Login
+  cutover stopped setting `session['account_id']`/`['username']`, but `base.html`
+  still gated the whole nav rail on `session.account_id` — so logged-in users got
+  no nav (the Phase 3 status-only smoke test missed it, since the page still
+  returned 200). Repointed the template at Flask-Login's `current_user`
+  (`current_user.is_authenticated` / `current_user.username`). Smoke now asserts
+  the nav rail + logout label render on every authed page.
 
 Exit criteria: full test suite green; styled error pages; no import-inside-
-function except where a genuine cycle requires it.
+function except where a genuine cycle/optionality requires it. **All met.**
 
 ---
 

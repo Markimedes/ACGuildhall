@@ -5,6 +5,8 @@ nav context processor and Jinja filters.
 
 from __future__ import annotations
 
+from itertools import groupby
+
 from flask import Blueprint, g, render_template, session
 from flask_login import current_user, login_required
 from markupsafe import Markup, escape
@@ -119,8 +121,6 @@ def dashboard():
 @bp.route("/chronicle")
 @login_required
 def chronicle():
-    from itertools import groupby
-
     ch = active_character()
     events = db.chronicle_events(ch["guid"]) if ch else []
     # Rows arrive newest-first; rows for a given day are contiguous, so a

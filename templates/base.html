@@ -13,7 +13,7 @@
   <div class="layout{{ ' has-actions' if action_content.strip() }}">
     <aside class="nav-rail">
       <a class="brand" href="{{ url_for('core.dashboard') }}">Guildhall</a>
-      {% if session.account_id %}
+      {% if current_user.is_authenticated %}
       <nav class="nav-links">
         <a href="{{ url_for('news.index') }}" class="{{ 'active' if request.endpoint in ('news.index', 'news.archive') }}">News</a>
         <a href="{{ url_for('forum.index') }}" class="{{ 'active' if request.endpoint == 'forum.index' }}">Forum</a>
@@ -45,7 +45,7 @@
         {% endif %}
         <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="link">Log out ({{ session.username }})</button>
+          <button type="submit" class="link">Log out ({{ current_user.username }})</button>
         </form>
       </div>
       {% endif %}

@@ -15,6 +15,7 @@ from flask import Flask
 from config import Config, ProductionConfig
 from data import ahservice, db, soap
 
+from .errors import register_error_handlers
 from .extensions import csrf, init_news_desk, limiter, login_manager
 from .security import register_security
 
@@ -30,6 +31,10 @@ def create_app(config: Config | None = None) -> Flask:
     # Templates/static stay flat at the repo root (one level above this package).
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.config.from_object(cfg)
+
+    # Hand the request's pooled DB connection back to the pool when the request
+    # (or any app context) ends.
+    app.teardown_appcontext(db.close_connection)
 
     # Behind nginx: trust one proxy hop so request.remote_addr (rate limiting)
     # and the URL scheme/Secure cookie reflect the real client, not the proxy.
@@ -48,6 +53,7 @@ def create_app(config: Config | None = None) -> Flask:
     init_news_desk(app)
 
     register_security(app)
+    register_error_handlers(app)
 
     # Blueprints. core is unprefixed (dashboard, chronicle, nav context + jinja
     # filters); auth and invites stay unprefixed so existing URLs (notably the
