@@ -61,11 +61,10 @@ moving anything.
       matching `Werkzeug>=3.1` floor (replaces the loose `Flask>=3.0`), and a
       `dev` extra with `pytest`. NOTE: `uv` is not installed on this box, so no
       uv lockfile yet — used the existing venv's pip. Generating a uv lockfile
-      and switching the Dockerfile off `requirements.txt` is deferred to a
-      deploy cutover (blocked on `uv`, not on the Phase 4 polish, which has since
-      landed without touching it); `requirements.txt` stays valid until then. The
-      Phase 2 extensions (flask-login / flask-wtf / flask-limiter) get added to
-      `dependencies` when that phase lands.
+      and switching the Dockerfile off `requirements.txt` was deferred to a
+      deploy cutover, since done in **Phase 5** (`uv` is now installed;
+      `requirements.txt` is retired). The Phase 2 extensions (flask-login /
+      flask-wtf / flask-limiter) get added to `dependencies` when that phase lands.
 - [x] Stand up `tests/conftest.py`: `app` fixture builds a real `create_app()`
       with required env set and `db.init_pool` stubbed to a no-op; `client` and
       `csrf_token` fixtures. (Built against the current hand-rolled config; moves
@@ -176,8 +175,8 @@ Tests: the Phase 0 characterization tests were updated to the new mechanism
 (Flask-WTF signed CSRF token in the `csrf_token` fixture; Flask-Login `_user_id`
 session key + a `get_account_by_id` stub for the loader) — they assert the same
 behavior, 19 still green. New runtime deps added to BOTH `pyproject.toml` and
-`requirements.txt` (the Docker image still installs from the latter until the
-`uv` deploy cutover — see Phase 1's pyproject note; not part of the Phase 4 polish).
+`requirements.txt` (the Docker image installed from the latter until the `uv`
+deploy cutover landed in Phase 5, which retired `requirements.txt`).
 
 Exit criteria: CSRF, auth, and rate-limit behavior tests from Phase 0 still pass;
 no mutable runtime state in `app.config`; rate limit is shared across workers (or
@@ -336,6 +335,36 @@ entrypoints import.
 
 Exit criteria: full test suite green; styled error pages; no import-inside-
 function except where a genuine cycle/optionality requires it. **All met.**
+
+---
+
+## Phase 5 — uv lockfile + Docker cutover
+
+The deploy-tooling cutover deferred from Phase 0 (it was blocked on `uv`, which
+is now installed). Goal: a reproducible, locked dependency install and a Docker
+image that builds from the lock instead of the loose `requirements.txt`.
+
+- [x] **Generate `uv.lock`** from `pyproject.toml` (`uv lock` — 75 packages
+      resolved for `requires-python >=3.9`). Committed, so the resolution is
+      reproducible.
+- [x] **`tool.uv.package = false`** in `pyproject.toml`: the app runs from source
+      (`wsgi.py` + the `guildhall`/`data` packages on the path), it is not built
+      as a wheel, so uv manages only the dependency environment. Also fixed the
+      stale `pythonpath` comment (it still named the moved `app.py`/`db.py`).
+- [x] **Dockerfile → uv**: copy the pinned `uv` binary
+      (`ghcr.io/astral-sh/uv:0.11.24`), `COPY pyproject.toml uv.lock` then
+      `uv sync --frozen --no-dev` (locked runtime deps, no pytest) before copying
+      app code (layer caching). `--frozen` fails the build on pyproject/lock
+      drift. Venv on `PATH`, so the `gunicorn` CMD is unchanged; still non-root.
+- [x] **Retire `requirements.txt`** (deleted). Updated `README.md` (setup now
+      `uv sync` + the new `pyproject.toml`/`uv.lock` layout row) and `.env.example`
+      (google-genai pointer → `pyproject.toml`).
+
+**MET.** `uv lock --check` clean. Frozen sync reproduced into a throwaway env and
+the **full suite passed (22)**; a `--no-dev` sync yields gunicorn + all runtime
+deps and no pytest (the image's shape). Note: the Docker image itself was not
+built here (no Docker daemon in this environment) — the build path is verified by
+the equivalent local `uv sync --frozen` runs.
 
 ---
 

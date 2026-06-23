@@ -30,6 +30,7 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
 | Path | Purpose |
 |------|---------|
 | `wsgi.py` | Gunicorn/dev entrypoint: `app = create_app()` |
+| `pyproject.toml`, `uv.lock` | Dependencies + the locked, reproducible resolution (managed with `uv`) |
 | `config.py` | `Config`/`Testing`/`Production` classes (all `GUILDHALL_*` env reads) |
 | `guildhall/` | Flask app package: `create_app` factory, `extensions.py`, `security.py`, and per-area blueprints (`auth`, `forum`, `roster`, `auction`, `news`, `invites`, `downloads`, `admin`, `core`) |
 | `data/` | Data-access + service layer: `db.py`, `srp6.py`, `soap.py`, `ahservice.py`, `ahprices.py`, `professions.py`, `recipes.py`, `news_ai.py`, … plus their committed JSON (`recipes.json`, `item_icons.json`, `achievements.json`, …) |
@@ -40,12 +41,14 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
 
 ## Setup
 
-1. **Create a virtualenv and install deps**
+1. **Install dependencies** with [uv](https://docs.astral.sh/uv/) — the exact
+   versions are pinned in the committed `uv.lock`, so the environment is
+   reproducible:
 
    ```bash
    cd guildhall
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
+   uv sync                    # runtime deps into .venv/ (add --extra dev for pytest)
+   source .venv/bin/activate  # so the `python ...` commands below resolve
    ```
 
 2. **Apply the schema and create the DB user.** Edit `schema.sql` first to set the

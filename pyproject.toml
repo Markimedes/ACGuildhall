@@ -28,8 +28,14 @@ dev = [
     "pytest>=8.0",
 ]
 
+# The app runs from source (wsgi.py + the `guildhall`/`data` packages on the
+# path); it is not built/installed as a wheel. Tell uv to manage only the
+# dependency environment, not to build this project.
+[tool.uv]
+package = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# App modules live at the project root (app.py, db.py, ...); put the root on the
-# path so tests can `import app` without an installed package.
+# The app (`guildhall/`) and data layer (`data/`) packages live at the project
+# root; put the root on the path so tests import them without an install step.
 pythonpath = ["."]
