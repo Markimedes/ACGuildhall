@@ -33,9 +33,9 @@ def test_login_success_sets_session(client, csrf_token, monkeypatch):
         "username": "TESTER", "password": "secret", "csrf_token": csrf_token,
     })
     assert resp.status_code == 302
+    # Flask-Login records the identity under "_user_id" (User.get_id()).
     with client.session_transaction() as sess:
-        assert sess["account_id"] == 1
-        assert sess["username"] == "TESTER"
+        assert sess["_user_id"] == "1"
 
 
 def test_login_wrong_password_rerenders(client, csrf_token, monkeypatch):
@@ -46,7 +46,7 @@ def test_login_wrong_password_rerenders(client, csrf_token, monkeypatch):
     })
     assert resp.status_code == 200
     with client.session_transaction() as sess:
-        assert "account_id" not in sess
+        assert "_user_id" not in sess
 
 
 def test_login_rate_limited_after_ten_attempts(client, csrf_token, monkeypatch):

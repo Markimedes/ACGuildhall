@@ -32,6 +32,8 @@ from flask import (
     url_for,
 )
 from urllib.parse import quote
+from flask_limiter.util import get_remote_address
+from flask_login import current_user, login_required, login_user, logout_user
 from markupsafe import Markup, escape
 
 import ahprices
@@ -43,6 +45,7 @@ import recipes
 import soap
 import srp6
 from config import Config, ProductionConfig
+from extensions import User, csrf, init_news_desk, limiter, login_manager
 from news_ai import NewsDesk
 from professions import profession_name
 
@@ -141,9 +144,16 @@ def create_app(config: Config | None = None) -> Flask:
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+    # Standard-library plumbing (Phase 2): CSRF, auth, rate limiting. Each is an
+    # unbound singleton from extensions.py, bound to this app here.
+    csrf.init_app(app)
+    login_manager.init_app(app)
+    limiter.init_app(app)
+
     # AI news desk (configured from GUILDHALL_GEMINI_* env vars). If no key /
-    # SDK, it stays dark and the News tab shows an offline notice.
-    app.config["_news_desk"] = NewsDesk.from_env()
+    # SDK, it stays dark and the News tab shows an offline notice. Lives on
+    # app.extensions, not app.config.
+    init_news_desk(app)
 
     _register_security(app)
     _register_filters(app)
@@ -152,12 +162,11 @@ def create_app(config: Config | None = None) -> Flask:
     @app.context_processor
     def inject_nav():
         return {
-            "is_admin": current_is_admin(),
+            "is_admin": current_user.is_authenticated and current_user.is_admin,
             "characters": current_characters(),
             "active_character": active_character(),
         }
 
-    app.config["_rate"] = {}  # ip -> [(timestamp), ...]
     return app
 
 
@@ -184,33 +193,9 @@ def _register_security(app: Flask) -> None:
         resp.headers["X-Frame-Options"] = "DENY"
         return resp
 
-    def csrf_token() -> str:
-        token = session.get("csrf_token")
-        if not token:
-            token = secrets.token_urlsafe(32)
-            session["csrf_token"] = token
-        return token
-
-    app.jinja_env.globals["csrf_token"] = csrf_token
-
-    @app.before_request
-    def csrf_protect():
-        if request.method == "POST":
-            sent = request.form.get("csrf_token", "")
-            expected = session.get("csrf_token", "")
-            if not expected or not secrets.compare_digest(sent, expected):
-                abort(400, "Invalid or missing CSRF token.")
-
-
-def _rate_limited(app: Flask, key: str, limit: int, window: int) -> bool:
-    """Return True if ``key`` has exceeded ``limit`` hits within ``window`` secs."""
-    now = time.time()
-    bucket = app.config["_rate"].setdefault(key, [])
-    bucket[:] = [t for t in bucket if now - t < window]
-    if len(bucket) >= limit:
-        return True
-    bucket.append(now)
-    return False
+    # CSRF is handled by Flask-WTF (csrf.init_app), which registers the
+    # ``csrf_token()`` Jinja global the templates already call. Rate limiting is
+    # handled by Flask-Limiter via per-route @limiter.limit decorators.
 
 
 # ---------------------------------------------------------------------------
@@ -249,35 +234,13 @@ def _register_filters(app: Flask) -> None:
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
-def login_required(view):
-    @functools.wraps(view)
-    def wrapped(*args, **kwargs):
-        if "account_id" not in session:
-            return redirect(url_for("login", next=request.path))
-        return view(*args, **kwargs)
-
-    return wrapped
-
-
-def current_is_admin() -> bool:
-    """Whether the logged-in account is an admin (gmlevel >= configured), cached
-    per request on flask.g."""
-    if "account_id" not in session:
-        return False
-    if not hasattr(g, "_is_admin"):
-        from flask import current_app
-        g._is_admin = db.is_admin(
-            session["account_id"], current_app.config["ADMIN_GMLEVEL"]
-        )
-    return g._is_admin
-
-
 def admin_required(view):
+    """Like Flask-Login's ``login_required`` but also requires admin gmlevel.
+    Unauthenticated -> the login redirect; authenticated non-admin -> 403."""
     @functools.wraps(view)
+    @login_required
     def wrapped(*args, **kwargs):
-        if "account_id" not in session:
-            return redirect(url_for("login", next=request.path))
-        if not current_is_admin():
+        if not current_user.is_admin:
             abort(403)
         return view(*args, **kwargs)
 
@@ -286,10 +249,10 @@ def admin_required(view):
 
 def current_characters():
     """The logged-in account's characters (request-cached on flask.g)."""
-    if "account_id" not in session:
+    if not current_user.is_authenticated:
         return []
     if not hasattr(g, "_chars"):
-        g._chars = db.account_characters(session["account_id"])
+        g._chars = db.account_characters(current_user.account_id)
     return g._chars
 
 
@@ -400,19 +363,15 @@ def _register_routes(app: Flask) -> None:
     def dashboard():
         return render_template(
             "dashboard.html",
-            username=session.get("username"),
+            username=current_user.username,
             guild=current_guild(),
         )
 
     # --- auth -------------------------------------------------------------
     @app.route("/login", methods=["GET", "POST"])
+    @limiter.limit("10 per 5 minutes", methods=["POST"])
     def login():
         if request.method == "POST":
-            ip = request.remote_addr or "unknown"
-            if _rate_limited(app, f"login:{ip}", limit=10, window=300):
-                flash("Too many attempts. Please wait a few minutes.", "error")
-                return render_template("login.html"), 429
-
             username = (request.form.get("username") or "").strip()
             password = request.form.get("password") or ""
             account = db.get_account_by_username(username)
@@ -421,8 +380,7 @@ def _register_routes(app: Flask) -> None:
                 account["salt"], account["verifier"],
             ):
                 session.clear()  # guard against session fixation
-                session["account_id"] = account["id"]
-                session["username"] = account["username"]
+                login_user(User(account["id"], account["username"]))
                 dest = request.args.get("next", "")
                 if not dest.startswith("/"):
                     dest = url_for("dashboard")
@@ -432,6 +390,7 @@ def _register_routes(app: Flask) -> None:
 
     @app.route("/logout", methods=["POST"])
     def logout():
+        logout_user()
         session.clear()
         return redirect(url_for("login"))
 
@@ -449,14 +408,14 @@ def _register_routes(app: Flask) -> None:
     # --- password ---------------------------------------------------------
     @app.route("/password", methods=["GET", "POST"])
     @login_required
+    @limiter.limit(
+        "5 per 5 minutes",
+        key_func=lambda: f"pw:{current_user.account_id}:{get_remote_address()}",
+        methods=["POST"],
+    )
     def password():
         if request.method == "POST":
-            account_id = session["account_id"]  # identity from session only
-            ip = request.remote_addr or "unknown"
-            if _rate_limited(app, f"pw:{account_id}:{ip}", limit=5, window=300):
-                flash("Too many attempts. Please wait a few minutes.", "error")
-                return render_template("password.html"), 429
-
+            account_id = current_user.account_id  # identity from session only
             current = request.form.get("current_password") or ""
             new = request.form.get("new_password") or ""
             confirm = request.form.get("confirm_password") or ""
@@ -552,21 +511,38 @@ def _register_routes(app: Flask) -> None:
             can_refresh=bool(ch and soap.enabled()),
         )
 
+    # Rate-limit the force-save per character (configurable; default once a
+    # minute) so a user can't hammer the world thread. Only an actionable
+    # refresh (character present + SOAP up) counts; the no-character / SOAP-down
+    # cases are answered in the body with their own message and must not burn the
+    # per-character budget.
+    def _refresh_exempt():
+        return not (active_character() and soap.enabled())
+
+    def _refresh_key():
+        ch = active_character()
+        return f"ahrefresh:{ch['guid']}" if ch else "ahrefresh:none"
+
+    def _refresh_breached(_limit):
+        window = app.config["AH_REFRESH_SECONDS"]
+        flash(f"Just refreshed -- please wait up to {window}s before "
+              "refreshing again.", "error")
+        return redirect(url_for("auctionhouse"))
+
     @app.route("/auctionhouse/refresh", methods=["POST"])
     @login_required
+    @limiter.limit(
+        lambda: f"1 per {app.config['AH_REFRESH_SECONDS']} seconds",
+        key_func=_refresh_key,
+        exempt_when=_refresh_exempt,
+        on_breach=_refresh_breached,
+    )
     def auctionhouse_refresh():
         ch = active_character()
         if not ch:
             return redirect(url_for("auctionhouse"))
         if not soap.enabled():
             flash("Refreshing isn't available right now.", "error")
-            return redirect(url_for("auctionhouse"))
-        # Rate-limit per character (configurable; default once a minute) so a user
-        # can't hammer the world thread with force-saves.
-        window = app.config["AH_REFRESH_SECONDS"]
-        if _rate_limited(app, f"ahrefresh:{ch['guid']}", limit=1, window=window):
-            flash(f"Just refreshed -- please wait up to {window}s before "
-                  "refreshing again.", "error")
             return redirect(url_for("auctionhouse"))
         ok, out = soap.command(f"guildhall save {ch['guid']}")
         _flash_refresh_result(ok, out)
@@ -753,7 +729,7 @@ def _register_routes(app: Flask) -> None:
         from datetime import date
 
         from flask import current_app
-        desk = current_app.config["_news_desk"]
+        desk = current_app.extensions["news_desk"]
         events = ahservice.events()
         articles = todays_news(desk, events)
         today = date.today().isoformat()
@@ -1040,7 +1016,7 @@ def _register_routes(app: Flask) -> None:
 
     # --- invites (authenticated) -----------------------------------------
     def _render_invites(new_link=None):
-        account_id = session["account_id"]
+        account_id = current_user.account_id
         return render_template(
             "invites.html",
             tokens=db.invite_available_tokens(account_id, app.config["INVITE_TOKENS_DEFAULT"]),
@@ -1052,7 +1028,7 @@ def _register_routes(app: Flask) -> None:
     @app.route("/invites", methods=["GET", "POST"])
     @login_required
     def invites():
-        account_id = session["account_id"]
+        account_id = current_user.account_id
         if request.method == "POST":
             tokens = db.invite_available_tokens(account_id, app.config["INVITE_TOKENS_DEFAULT"])
             if tokens["available"] <= 0:
@@ -1074,20 +1050,16 @@ def _register_routes(app: Flask) -> None:
     @app.route("/invites/<int:invite_id>/revoke", methods=["POST"])
     @login_required
     def revoke_invite(invite_id):
-        if db.invite_revoke(invite_id, session["account_id"]):
+        if db.invite_revoke(invite_id, current_user.account_id):
             flash("Invite canceled; token refunded.", "ok")
         return redirect(url_for("invites"))
 
     # --- invite redemption (PUBLIC, unauthenticated) ---------------------
     @app.route("/invite/<token>", methods=["GET", "POST"])
+    @limiter.limit("10 per 10 minutes", methods=["POST"])
     def invite_redeem(token):
         token_hash = _token_hash(token)
         if request.method == "POST":
-            ip = request.remote_addr or "unknown"
-            if _rate_limited(app, f"register:{ip}", limit=10, window=600):
-                flash("Too many attempts. Please wait a few minutes.", "error")
-                return render_template("invite_register.html", token=token), 429
-
             username = (request.form.get("username") or "").strip()
             password = request.form.get("password") or ""
             confirm = request.form.get("confirm_password") or ""

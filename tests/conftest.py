@@ -10,6 +10,8 @@ module of standalone functions).
 from __future__ import annotations
 
 import pytest
+from flask import session
+from flask_wtf.csrf import generate_csrf
 
 import app as app_module
 import db
@@ -42,10 +44,17 @@ def client(app):
 
 
 @pytest.fixture
-def csrf_token(client):
-    """Seed a CSRF token into the test session and return it, so POST tests can
-    pass the hand-rolled CSRF check (Phase 2 will replace this with Flask-WTF)."""
-    token = "test-csrf-token"
+def csrf_token(client, app):
+    """A valid Flask-WTF CSRF token bound to the test client's session.
+
+    Flask-WTF submits a *signed* token whose raw secret lives in
+    ``session['csrf_token']``; we mint a matching pair in a throwaway request
+    context, then plant the raw secret in the client's session so the signed
+    token validates on POST.
+    """
+    with app.test_request_context():
+        signed = generate_csrf()
+        raw = session["csrf_token"]
     with client.session_transaction() as sess:
-        sess["csrf_token"] = token
-    return token
+        sess["csrf_token"] = raw
+    return signed

@@ -48,6 +48,12 @@ class Config:
     TESTING = False
     DEBUG = False
 
+    # Flask-WTF CSRF: tie token validity to the session (no fixed expiry),
+    # matching the hand-rolled token's old behavior. A login/redeem page can sit
+    # open for a long time before submit; an expiring token would 400 it. The
+    # SameSite=Lax cookie remains the primary control (skill issue #6).
+    WTF_CSRF_TIME_LIMIT = None
+
     def __init__(self) -> None:
         env = os.environ
 
@@ -60,6 +66,16 @@ class Config:
         # Cap request bodies. The auction-list JSON payload is the only large
         # input; everything else is a small form post.
         self.MAX_CONTENT_LENGTH = _int("GUILDHALL_MAX_CONTENT_LENGTH", 512 * 1024)
+
+        # --- rate limiting (Flask-Limiter) ---
+        # Storage backend for the login/password/register/ah-refresh limits.
+        # Defaults to in-process memory, which is PER GUNICORN WORKER: with N
+        # workers the effective limit is ~N x the configured value and buckets
+        # never evict across a restart. Point this at Redis
+        # (e.g. redis://redis:6379) in any multi-worker deployment to make the
+        # limits shared and correct.
+        self.RATELIMIT_STORAGE_URI = env.get(
+            "GUILDHALL_RATELIMIT_STORAGE_URI", "memory://")
 
         # --- dev-server bind (used only by `python app.py`) ---
         self.HOST = env.get("GUILDHALL_HOST", "127.0.0.1")

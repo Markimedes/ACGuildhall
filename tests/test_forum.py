@@ -22,12 +22,16 @@ def _setup(monkeypatch, create_spy):
     monkeypatch.setattr(db, "is_admin", lambda aid, lvl: False)
     monkeypatch.setattr(db, "list_feed", lambda gid, feed: [])
     monkeypatch.setattr(db, "create_post", create_spy)
+    # The Flask-Login user_loader resolves the logged-in account by id.
+    monkeypatch.setattr(db, "get_account_by_id",
+                        lambda aid: {"id": 1, "username": "MEMBER",
+                                     "salt": b"", "verifier": b""})
 
 
 def _login(client):
+    # Flask-Login keys the session on "_user_id" (the User.get_id() string).
     with client.session_transaction() as sess:
-        sess["account_id"] = 1
-        sess["username"] = "MEMBER"
+        sess["_user_id"] = "1"
 
 
 def test_player_post_succeeds(client, csrf_token, monkeypatch):

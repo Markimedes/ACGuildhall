@@ -131,44 +131,58 @@ Introduce `extensions.py` and migrate the hand-rolled CSRF, auth, and rate
 limiting to the standard libraries. Do these as **separate commits** so each is
 reviewable and revertible.
 
-- [ ] **`extensions.py`**: instantiate `csrf = CSRFProtect()`,
-      `login_manager = LoginManager()`, `limiter = Limiter(...)`, and a place to
-      hold the `NewsDesk` and DB pool handle. Factory calls `x.init_app(app)`.
-      This removes the live objects currently stuffed into `app.config`
-      (`_news_desk`, `_rate`).
-- [ ] **Flask-WTF CSRF**: delete the hand-rolled `csrf_token()` /
-      `before_request` CSRF in `security.py`. Flask-WTF provides
-      `{{ csrf_token() }}` for templates automatically, so the templates that
-      already emit `<input name="csrf_token">` keep working. Verify the wowhead
-      external POST/connect paths aren't broken by CSRF (they're GET widgets, so
-      fine).
-- [ ] **Flask-WTF forms** (incremental): introduce `FlaskForm` subclasses for
-      login, password change, forum post/reply, invite register, admin tokens.
-      Move the scattered manual `request.form.get(...)` + length checks
-      (`MAX_TITLE_LEN`, `MAX_BODY_LEN`, `USERNAME_RE`, `MAX_PASS_LEN`, …) into
-      WTForms validators. Can be done per-blueprint during Phase 3 if it's too
-      much in one pass.
-- [ ] **Flask-Login**: add a `User` wrapper (`UserMixin`) and a
-      `@login_manager.user_loader` that loads by `account_id`. Replace the custom
-      `login_required`/`admin_required` decorators and raw `session["account_id"]`
-      with `login_user`/`logout_user`/`@login_required`/`current_user`. Keep the
-      `session.clear()` fixation guard. Move admin gating to a small
-      `admin_required` that checks `current_user`'s gmlevel. **Rename** anything
-      so it no longer shadows Flask-Login's `login_required`.
-      Set `login_manager.session_protection = "basic"` (skill issue #5: "strong"
-      logs out mobile/VPN users on IP change).
-- [ ] **Flask-Limiter**: replace `_rate_limited` + the `app.config["_rate"]`
-      dict. This fixes a real bug — the in-process dict is **per gunicorn
-      worker**, so the documented "10/5min" login limit is actually ~30 across 3
-      workers, and buckets never evict. Configure a shared storage backend
-      (Redis if available; otherwise document the single-worker constraint).
-      Re-apply the existing limits as decorators: login 10/5min, password
-      5/5min, register 10/10min, ah-refresh 1 per `AH_REFRESH_SECONDS` per
-      character (custom key func on char guid).
+- [x] **`extensions.py`**: instantiates `csrf = CSRFProtect()`,
+      `login_manager = LoginManager()`, `limiter = Limiter(key_func=
+      get_remote_address, default_limits=[])`, plus the `User`/`user_loader`/
+      `unauthorized_handler` and an `init_news_desk(app)`. Factory calls
+      `x.init_app(app)`. The live objects left `app.config` (`_news_desk` →
+      `app.extensions["news_desk"]`; `_rate` deleted). The DB pool handle stays
+      in `db.py` for now (its lifecycle move to `g`/teardown is Phase 4).
+- [x] **Flask-WTF CSRF**: deleted the hand-rolled `csrf_token()` /
+      `before_request` CSRF. Flask-WTF registers the `{{ csrf_token() }}` Jinja
+      global the templates already call, so no template changes. Set
+      `WTF_CSRF_TIME_LIMIT = None` so tokens live as long as the session (the old
+      token never expired; avoids 400ing a long-open login/redeem page — skill
+      issue #6). Note: `session.clear()` on login rotates the token, which is
+      correct — the next page renders a fresh one.
+- [ ] **Flask-WTF forms** — DEFERRED to Phase 3. The routes are still one
+      `_register_routes` closure with manual `request.form.get` + length checks;
+      introducing `FlaskForm` subclasses is cleaner once each route lives in its
+      blueprint (the plan already permits this). The manual validators are still
+      pinned by the Phase 0 characterization tests, so the move stays safe.
+- [x] **Flask-Login**: added `User(UserMixin)` (id = account id, `is_admin`
+      resolved lazily/per-request) + `@login_manager.user_loader` by account id.
+      Replaced the custom `login_required` (now Flask-Login's),
+      `current_is_admin()` (now `current_user.is_admin`), and raw
+      `session["account_id"]`/`session["username"]` with `login_user`/
+      `logout_user`/`current_user`. Kept the `session.clear()` fixation guard
+      (clear → `login_user`). `admin_required` now stacks `@login_required` then
+      a gmlevel check. A custom `unauthorized_handler` preserves the exact old
+      redirect (`/login?next=<path>`). `session_protection = "basic"` (skill
+      issue #5).
+- [x] **Flask-Limiter**: replaced `_rate_limited` + `app.config["_rate"]` with
+      per-route `@limiter.limit` decorators: login 10/5min, password 5/5min
+      (key `pw:{account}:{ip}`), register 10/10min, ah-refresh `1 per
+      AH_REFRESH_SECONDS` per character (custom `key_func` on char guid, with
+      `exempt_when` so no-character/SOAP-down requests don't burn the budget and
+      `on_breach` to keep the friendly flash+redirect instead of a bare 429).
+      Storage is `RATELIMIT_STORAGE_URI` (default `memory://`); the per-worker
+      caveat + Redis pointer are documented in `config.py` and `.env.example`.
+      No Redis on this box yet, so the multi-worker limitation is documented, not
+      yet fixed (Redis at deploy).
+
+Tests: the Phase 0 characterization tests were updated to the new mechanism
+(Flask-WTF signed CSRF token in the `csrf_token` fixture; Flask-Login `_user_id`
+session key + a `get_account_by_id` stub for the loader) — they assert the same
+behavior, 19 still green. New runtime deps added to BOTH `pyproject.toml` and
+`requirements.txt` (the Docker image still installs from the latter until Phase 4).
 
 Exit criteria: CSRF, auth, and rate-limit behavior tests from Phase 0 still pass;
 no mutable runtime state in `app.config`; rate limit is shared across workers (or
-the limitation is explicitly documented).
+the limitation is explicitly documented). **MET** — 19 tests green; `_news_desk`
+and `_rate` gone from `app.config`; the per-worker limit caveat is documented
+with a Redis path. `create_app(TestingConfig)`/`(ProductionConfig)` both build
+and the news sidecar still imports.
 
 ---
 
