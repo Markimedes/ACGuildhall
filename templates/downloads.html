@@ -16,7 +16,7 @@
       <td>{{ f.name }}</td>
       <td>{{ f.size_human }}</td>
       <td class="muted">{{ f.modified }}</td>
-      <td><a class="badge" href="{{ url_for('download_file', name=f.name) }}">Download</a></td>
+      <td><a class="badge" href="{{ url_for('downloads.file', name=f.name) }}">Download</a></td>
     </tr>
     {% endfor %}
   </tbody>

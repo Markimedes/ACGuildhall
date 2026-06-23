@@ -6,10 +6,8 @@ blueprint. The three external lookups it calls are faked.
 
 from __future__ import annotations
 
-import ahprices
-import ahservice
-import db
-from app import build_ah_view
+from data import ahprices, ahservice, db
+from guildhall.auction import build_ah_view
 
 # Inventory slots: 23 = backpack (inventory region), 39 = main bank (bank region).
 _BACKPACK = 23

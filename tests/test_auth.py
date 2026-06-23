@@ -6,8 +6,8 @@ Flask-WTF / Flask-Limiter) can prove it didn't regress.
 
 from __future__ import annotations
 
-import db
-import srp6
+from data import db
+from data import srp6
 
 
 def test_root_requires_login(client):

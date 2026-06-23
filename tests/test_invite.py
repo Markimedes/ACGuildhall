@@ -6,7 +6,7 @@ Flask-WTF form, plus the 'taken' branch. The DB write itself is faked.
 
 from __future__ import annotations
 
-import db
+from data import db
 
 
 def _post(client, csrf, **overrides):

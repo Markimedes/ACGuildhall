@@ -8,12 +8,12 @@
 {% else %}
 <p>Guild: <strong>{{ guild.guild_name }}</strong></p>
 <div class="cards">
-  <a class="tile" href="{{ url_for('forum_feed', feed='official') }}">
+  <a class="tile" href="{{ url_for('forum.feed', feed='official') }}">
     <h2>Announcements</h2>
     <p>Official posts from the guild leader.</p>
     <span class="count">{{ counts.get('official', 0) }} posts</span>
   </a>
-  <a class="tile" href="{{ url_for('forum_feed', feed='player') }}">
+  <a class="tile" href="{{ url_for('forum.feed', feed='player') }}">
     <h2>Member Board</h2>
     <p>Open discussion for any guild member.</p>
     <span class="count">{{ counts.get('player', 0) }} posts</span>

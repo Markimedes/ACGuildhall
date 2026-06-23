@@ -21,7 +21,11 @@ import argparse
 import json
 from pathlib import Path
 
+# build_recipes (sibling) puts the repo root on sys.path; it owns the data import.
 from build_recipes import cstr, discover_dbc_dir, read_dbc, u32
+
+# Regenerated JSON must land in data/ where the runtime modules read it.
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 ACH_ID_OFF = 0 * 4
 ACH_NAME_OFF = 4 * 4
@@ -47,7 +51,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dbc-dir", type=Path, default=None)
     ap.add_argument("--out", type=Path,
-                    default=Path(__file__).with_name("achievements.json"))
+                    default=_DATA_DIR / "achievements.json")
     args = ap.parse_args()
 
     dbc_dir = args.dbc_dir or discover_dbc_dir()

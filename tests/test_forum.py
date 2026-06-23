@@ -6,7 +6,7 @@ The guild/character context and the DB writes are faked.
 
 from __future__ import annotations
 
-import db
+from data import db
 
 # A single guilded character for the logged-in account. guid != leaderguid, so
 # the account is a normal member (can post to the player feed, not 'official').

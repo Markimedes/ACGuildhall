@@ -23,12 +23,9 @@ from __future__ import annotations
 import logging
 import sys
 
-import ahservice
-import db
-import exploits
-from app import NEWS_MARKET_CATEGORIES, todays_news
 from config import ProductionConfig
-from news_ai import NewsDesk
+from data import ahservice, db, exploits
+from data.news_ai import NEWS_MARKET_CATEGORIES, NewsDesk, todays_news
 
 
 log = logging.getLogger("guildhall.news.cron")

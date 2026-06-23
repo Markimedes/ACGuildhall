@@ -27,7 +27,7 @@ import sys
 
 # --- standalone bootstrap: find the Guildhall package + load its .env --------
 _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PKG_DIR = os.path.dirname(_TOOLS_DIR)  # the guildhall/ package root
+_PKG_DIR = os.path.dirname(_TOOLS_DIR)  # repo root (holds the data/ package)
 if _PKG_DIR not in sys.path:
     sys.path.insert(0, _PKG_DIR)
 
@@ -70,8 +70,7 @@ def _db_config() -> dict:
 
 
 # Imports that need the package on sys.path happen after the bootstrap above.
-import db  # noqa: E402
-import exploits  # noqa: E402
+from data import db, exploits  # noqa: E402
 
 
 def _counts(edition: str) -> dict[str, int]:

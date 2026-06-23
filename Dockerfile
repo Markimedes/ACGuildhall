@@ -21,6 +21,7 @@ USER app
 
 EXPOSE 5000
 
-# Production WSGI server. create_app() reads config from GUILDHALL_* env vars.
+# Production WSGI server. wsgi.py builds app = create_app(), which reads config
+# from GUILDHALL_* env vars.
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", \
-     "--access-logfile", "-", "--forwarded-allow-ips", "*", "app:create_app()"]
+     "--access-logfile", "-", "--forwarded-allow-ips", "*", "wsgi:app"]

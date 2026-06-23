@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Log in</h1>
 <p class="muted">Use your game account name and password.</p>
-<form method="post" action="{{ url_for('login') }}" class="card">
+<form method="post" action="{{ url_for('auth.login') }}" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Account name
     <input type="text" name="username" autocomplete="username" required autofocus>

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from professions import profession_name
+from .professions import profession_name
 
 _PATH = Path(__file__).with_name("recipes.json")
 try:

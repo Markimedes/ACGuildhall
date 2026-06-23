@@ -6,7 +6,8 @@ blueprints; they must keep passing afterward.
 
 from __future__ import annotations
 
-from app import _human_size, _to_gsc, resolve_download
+from guildhall.auction import _to_gsc
+from guildhall.downloads import _human_size, resolve_download
 
 
 def test_to_gsc_splits_copper():

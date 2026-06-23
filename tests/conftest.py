@@ -13,9 +13,9 @@ import pytest
 from flask import session
 from flask_wtf.csrf import generate_csrf
 
-import app as app_module
-import db
 from config import TestingConfig
+from data import db
+from guildhall import create_app
 
 # Minimal env required by Config.validate(); the DB creds are inert because
 # init_pool is stubbed below.
@@ -35,7 +35,7 @@ def app(monkeypatch):
     monkeypatch.setattr(db, "init_pool", lambda cfg: None)
     # TestingConfig reads the env we just set; pass it explicitly so we exercise
     # the create_app(config) path.
-    return app_module.create_app(TestingConfig())
+    return create_app(TestingConfig())
 
 
 @pytest.fixture

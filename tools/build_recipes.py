@@ -25,9 +25,16 @@ from __future__ import annotations
 import argparse
 import json
 import struct
+import sys
 from pathlib import Path
 
-from professions import PROFESSION_SKILL_IDS
+# This is offline tooling under tools/; put the repo root on the path so the
+# committed data layer is importable, and anchor output/DBC paths to it.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from data.professions import PROFESSION_SKILL_IDS
 
 PROF_SET = set(PROFESSION_SKILL_IDS)
 
@@ -216,17 +223,19 @@ def fetch_vendor_items(db_args: dict) -> list[int]:
 
 
 def discover_dbc_dir() -> Path:
-    here = Path(__file__).resolve().parent
-    for cand in (here.parent / "env/dist/data/dbc", here.parent / "data/dbc"):
+    # The client DBCs live next to the repo (azerothcore/env/dist/data/dbc),
+    # i.e. one level above the repo root.
+    base = _REPO_ROOT.parent
+    for cand in (base / "env/dist/data/dbc", base / "data/dbc"):
         if (cand / "SkillLineAbility.dbc").exists():
             return cand
-    return here.parent / "env/dist/data/dbc"
+    return base / "env/dist/data/dbc"
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dbc-dir", type=Path, default=None)
-    ap.add_argument("--out", type=Path, default=Path(__file__).with_name("recipes.json"))
+    ap.add_argument("--out", type=Path, default=_REPO_ROOT / "data" / "recipes.json")
     # item names (reagents/products) are baked in from item_template at build time,
     # so the running app needs no acore_world access.
     ap.add_argument("--db-host", default="127.0.0.1")

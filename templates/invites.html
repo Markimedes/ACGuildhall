@@ -20,7 +20,7 @@
 </div>
 {% endif %}
 
-<form method="post" action="{{ url_for('invites') }}" class="inline-form">
+<form method="post" action="{{ url_for('invites.index') }}" class="inline-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" {{ 'disabled' if tokens.available <= 0 }}>Create invite link</button>
 </form>
@@ -51,7 +51,7 @@
       <td>
         {% if inv.pending %}
         <form class="inline" method="post"
-              action="{{ url_for('revoke_invite', invite_id=inv.id) }}"
+              action="{{ url_for('invites.revoke', invite_id=inv.id) }}"
               onsubmit="return confirm('Cancel this invite and refund the token?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="link danger">Cancel</button>

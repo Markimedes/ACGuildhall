@@ -5,7 +5,7 @@
 <p class="muted">Default allowance for every account: <strong>{{ default_tokens }}</strong>.
   Set an override below to give a specific account more or fewer tokens.</p>
 
-<form method="post" action="{{ url_for('admin_tokens') }}" class="card">
+<form method="post" action="{{ url_for('admin.tokens') }}" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="action" value="set">
   <label>Account name
@@ -29,7 +29,7 @@
       <td>{{ o.username }}</td>
       <td>{{ o.tokens }}</td>
       <td>
-        <form class="inline" method="post" action="{{ url_for('admin_tokens') }}">
+        <form class="inline" method="post" action="{{ url_for('admin.tokens') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="remove">
           <input type="hidden" name="username" value="{{ o.username }}">

@@ -43,7 +43,7 @@
              target="_blank" rel="noopener">
             <img class="r-icon" src="{{ s.icon | icon_url('small') }}" alt="" loading="lazy">{{ s.name }}</a>
         </td>
-        <td>{% for n in s.needers %}<a href="{{ url_for('player', guid=n.guid) }}">{{ n.name }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td>{% for n in s.needers %}<a href="{{ url_for('roster.player', guid=n.guid) }}">{{ n.name }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td class="muted">{% for n in s.needers %}{{ n.professions | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
       </tr>
       {% endfor %}
@@ -62,7 +62,7 @@
     {% set items = member_demand.get(m.char_guid, {}).get(prof.skill) %}
     <details class="member-row">
       <summary>
-        <a class="member-name" href="{{ url_for('player', guid=m.char_guid) }}">{{ m.char_name }}</a>
+        <a class="member-name" href="{{ url_for('roster.player', guid=m.char_guid) }}">{{ m.char_name }}</a>
         <span class="muted">lvl {{ m.level }}</span>
         <span class="skill">{{ m.value }}/{{ m.max }}</span>
       </summary>

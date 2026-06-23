@@ -27,17 +27,16 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
 
 ## Layout
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `app.py` | Flask app: routes, auth/session, CSRF, security headers |
-| `srp6.py` | Pure-Python port of AzerothCore's SRP6 (password verify/registration) |
-| `db.py` | Connection pool + parameterized queries |
-| `professions.py` | Skill-id → profession name map |
-| `recipes.py` | Loads `recipes.json`; maps known spell ids → recipe names per profession |
-| `build_recipes.py` | One-time DBC parser → `recipes.json` (recipe names aren't in MySQL) |
-| `recipes.json` | Generated recipe reference (committed; ~250 KB) |
+| `wsgi.py` | Gunicorn/dev entrypoint: `app = create_app()` |
+| `config.py` | `Config`/`Testing`/`Production` classes (all `GUILDHALL_*` env reads) |
+| `guildhall/` | Flask app package: `create_app` factory, `extensions.py`, `security.py`, and per-area blueprints (`auth`, `forum`, `roster`, `auction`, `news`, `invites`, `downloads`, `admin`, `core`) |
+| `data/` | Data-access + service layer: `db.py`, `srp6.py`, `soap.py`, `ahservice.py`, `ahprices.py`, `professions.py`, `recipes.py`, `news_ai.py`, … plus their committed JSON (`recipes.json`, `item_icons.json`, `achievements.json`, …) |
+| `tools/` | Offline tooling: `build_recipes.py`/`build_item_icons.py`/`build_achievements.py` (DBC parsers → the committed JSON) and maintenance scripts |
+| `generate_news.py`, `news_scheduler.py` | News-desk sidecar entrypoints (the docker-compose `news-scheduler` service) |
 | `schema.sql` | Custom forum tables + `guildhall` MySQL user/grants |
-| `templates/`, `static/` | Jinja2 templates and CSS |
+| `templates/`, `static/` | Jinja2 templates and CSS (flat, shared by all blueprints) |
 
 ## Setup
 
@@ -64,15 +63,15 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
    # edit .env: paste the secret key, set the DB password to match schema.sql
    ```
 
-   docker-compose loads `.env` automatically. To run `python app.py` directly,
+   docker-compose loads `.env` automatically. To run `python wsgi.py` directly,
    export those variables into your shell first (e.g. `set -a; . ./.env; set +a`).
 
 4. **Build the recipe reference** (once; re-run only if the client DBCs change).
    Recipe names/profession mappings live in the client DBC files, not MySQL:
 
    ```bash
-   python build_recipes.py        # auto-finds env/dist/data/dbc, writes recipes.json
-   # or: python build_recipes.py --dbc-dir /path/to/dbc
+   python tools/build_recipes.py        # auto-finds env/dist/data/dbc, writes data/recipes.json
+   # or: python tools/build_recipes.py --dbc-dir /path/to/dbc
    ```
 
    It also reads `item_template` (default `acore`/`acore` — override with
@@ -85,7 +84,7 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
    (achievement names live in `Achievement.dbc`, not MySQL):
 
    ```bash
-   python build_achievements.py   # auto-finds env/dist/data/dbc, writes achievements.json
+   python tools/build_achievements.py   # auto-finds env/dist/data/dbc, writes data/achievements.json
    ```
 
    `achievements.json` is committed too; re-run only if the client DBCs change.
@@ -93,7 +92,7 @@ It talks **only to MySQL** (never to the worldserver) as a dedicated least-privi
 5. **Run.**
 
    ```bash
-   python app.py        # serves on 127.0.0.1:5000 by default
+   python wsgi.py        # serves on 127.0.0.1:5000 by default
    ```
 
    For anything beyond local testing, run it behind a reverse proxy that terminates

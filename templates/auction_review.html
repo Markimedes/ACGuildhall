@@ -12,7 +12,7 @@
   &mdash; the server charges the exact amount.
 </p>
 
-<form method="post" action="{{ url_for('auctionhouse_list') }}" id="ah-list-form"
+<form method="post" action="{{ url_for('auction.list_items') }}" id="ah-list-form"
       data-pct="{{ deposit_percent }}" data-rate="{{ deposit_rate }}"
       data-money="{{ money }}" data-online="{{ char_online | lower }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -130,7 +130,7 @@
     {%- if rows and vendor_rows %}Auction &amp; sell items
     {%- elif rows %}Put up for auction
     {%- else %}Sell to vendor{% endif %}</button>
-  <a class="link" href="{{ url_for('auctionhouse') }}">Cancel</a>
+  <a class="link" href="{{ url_for('auction.index') }}">Cancel</a>
 </div>
 <script src="{{ url_for('static', filename='auction_review.js') }}"></script>
 {% endblock %}

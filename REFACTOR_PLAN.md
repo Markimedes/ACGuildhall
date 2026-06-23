@@ -192,25 +192,34 @@ Split the single `_register_routes(app)` closure into Blueprints. Move route
 bodies verbatim where possible; the earlier phases already removed the closure's
 dependencies on factory-local helpers.
 
-- [ ] Create blueprints: `core` (dashboard, context processor, jinja filters),
-      `auth`, `password` (or fold into auth), `forum`, `roster`, `auction`,
-      `news`, `invites`, `downloads`, `admin`.
-- [ ] Move the factory-local helpers out of the closure to module scope in their
-      blueprint: `_demand_for`/`_player_demand` → roster; `build_ah_view` and the
+- [x] Created blueprints: `core` (dashboard + chronicle, context processor, jinja
+      filters, shared char/guild helpers), `auth` (login/logout/password/char
+      select — `password` folded into `auth`), `forum`, `roster`, `auction`,
+      `news`, `invites`, `downloads`, `admin`. Each is `guildhall/<area>/__init__.py`.
+- [x] Moved the factory-local helpers to blueprint module scope:
+      `_demand_for`/`_player_demand` → roster; `build_ah_view` + the
       `_sellable_by_guid`/`_posted_guids`/`_to_gsc`/`_flash_*` helpers → auction;
-      `todays_news`/`_exploit_columns`/`_edition_neighbors` → news;
-      `current_guild`/`active_character`/`current_characters` → shared (core or a
-      small `context.py`).
-- [ ] Update **every** `url_for("login")` → `url_for("auth.login")` etc. in
-      routes and templates. Grep the templates — `base.html` references
-      `dashboard`, `news`, `forum`, `roster`, `chronicle`, `auctionhouse`,
-      `downloads`, `invites`, `admin_tokens`, `password`, `select_character`,
-      `logout`. The `request.endpoint ==` active-nav checks also need the new
-      `blueprint.endpoint` names.
-- [ ] Register blueprints in the factory with appropriate `url_prefix`
-      (`/forum`, `/roster`, `/auctionhouse`, `/admin`, …). Keep public routes
-      (login, invite redeem) unprefixed where the current URLs must be preserved
-      — invite links already in the wild must not break.
+      `_exploit_columns`/`_edition_neighbors` → news;
+      `current_guild`/`active_character`/`current_characters` → `core`.
+      DEVIATION: `todays_news`/`NEWS_MARKET_CATEGORIES` went to `data/news_ai.py`,
+      NOT the news blueprint — the news *scheduler sidecar* (`generate_news.py`)
+      also calls `todays_news`, and a sidecar importing a blueprint would invert
+      the `guildhall → data` dependency. Living in the data layer lets both the
+      News page and the sidecar share it cleanly. `app.config[...]` reads in the
+      moved helpers became `current_app.config[...]`.
+- [x] Rewrote **every** template `url_for(...)` (54 across 17 templates) and the
+      `request.endpoint` active-nav checks to `blueprint.endpoint` names
+      (`auctionhouse` startswith → `auction.`; `('news','news_archive')` →
+      `('news.index','news.archive')`; etc.). Route-body `url_for`s rewritten too.
+      Endpoint map: dashboard→core.dashboard, login→auth.login,
+      auctionhouse→auction.index, auctionhouse_list→auction.list_items,
+      forum→forum.index, forum_feed→forum.feed, news→news.index,
+      invites→invites.index, invite_redeem→invites.redeem, admin_tokens→admin.tokens, …
+- [x] Registered in the factory with `url_prefix` `/forum`, `/roster`,
+      `/auctionhouse`, `/news`, `/downloads`, `/admin`. `core`, `auth`, and
+      `invites` are unprefixed so existing URLs are byte-identical — in particular
+      the public `/invite/<token>` redemption links already in the wild. Verified
+      the full URL map matches the pre-refactor paths exactly.
 
 ### Directory & module restructuring (do in this SAME pass)
 
@@ -234,25 +243,34 @@ Runtime-vs-tooling map (traced 2026-06-22 — drives what moves where):
 
 Path gotchas to handle during the moves (these are why a plain `git mv` breaks):
 
-- [ ] **JSON data loads via `Path(__file__).with_name(...)`** — `item_icons.json`
+- [x] **JSON moved ALONGSIDE its loader** into `data/`: `item_icons.json`
       (ahprices), `recipes.json`+`vendor_items.json` (recipes), `achievements.json`
-      (achievements). Each JSON must move ALONGSIDE its loader module, or the load
-      path breaks.
-- [ ] **Build scripts use `__file__`-relative input AND output**: `--out` defaults
-      to `Path(__file__).with_name("X.json")` (writes next to the script) and
-      `discover_dbc_dir()` anchors on `__file__.parent.parent`
-      (→ `azerothcore/env/dist/data/dbc`). Moving them into `tools/` requires
-      re-anchoring both to the repo root explicitly, so regenerated JSON lands
-      where the runtime modules read it and DBC discovery still resolves.
-      NOTE: regeneration can't be verified without the client DBCs present — fix
-      the paths, then do one regen pass next time you're near the client data.
-- [ ] **Tests follow the layout**: `tests/conftest.py` currently does `import app`
-      with `pythonpath = ["."]`; update imports/pythonpath when `app` becomes a
-      package and modules move under `data/`.
+      (achievements). The `Path(__file__).with_name(...)` loads resolve unchanged.
+      Intra-`data` imports rewritten to relative (`from . import db`, …).
+- [x] **Build scripts re-anchored to the repo root**: each computes
+      `_REPO_ROOT = Path(__file__).resolve().parent.parent`; `discover_dbc_dir()`
+      anchors on `_REPO_ROOT.parent` (→ `azerothcore/env/dist/data/dbc`) and the
+      `--out` defaults write to `data/*.json` where the runtime reads them.
+      `build_recipes.py` inserts the repo root on `sys.path` so `data.professions`
+      imports; the other two import it as a sibling. Verified `--help` + the path
+      resolution; the actual regen is still deferred until the client DBCs are
+      present (can't run the DBC parse here).
+- [x] **Tests follow the layout**: `conftest.py` now `from guildhall import
+      create_app` / `from data import db`; the other tests import from
+      `data`/`guildhall.auction`/`guildhall.downloads`. `pythonpath = ["."]` keeps
+      `data` and `guildhall` both importable from the repo root.
 
 Exit criteria: all Phase 0 tests green against blueprint URLs; manual smoke of
 every nav link; existing invite links still resolve; build scripts live in
 `tools/` with repo-root-anchored paths (regen pass deferred until DBCs available).
+**MET** — 19 tests green; every page (`/`, `/chronicle`, `/news`, `/forum`,
+`/roster`, `/auctionhouse`, `/downloads`, `/invites`, `/admin/tokens`,
+`/password`, public `/login` + `/invite/<token>`) renders 200 with the rewritten
+nav; URL map verified byte-identical to pre-refactor; `wsgi.py`/`generate_news.py`/
+`news_scheduler.py` all import; Dockerfile CMD → `wsgi:app`; README layout/run
+commands updated. The `api` blueprint (below) is DEFERRED — the auction
+review/list endpoints are form-driven HTML flows, not clean JSON, so they stay in
+the auction blueprint until a real second consumer appears.
 
 ---
 

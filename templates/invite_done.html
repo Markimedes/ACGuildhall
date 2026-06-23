@@ -5,7 +5,7 @@
 <h1>Account created</h1>
 <p>Welcome, <strong>{{ username }}</strong>! Your account is ready.</p>
 <p>You can now log in to the game with that account name and your password, or
-  <a href="{{ url_for('login') }}">log in to the panel</a>.</p>
+  <a href="{{ url_for('auth.login') }}">log in to the panel</a>.</p>
 {% else %}
 <h1>Invite unavailable</h1>
 <p class="muted">This invite link is invalid, has expired, or has already been used.

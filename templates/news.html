@@ -33,9 +33,9 @@
   </p>
   {% if prev_date or next_date or not is_today %}
   <nav class="news-nav">
-    {% if prev_date %}<a href="{{ url_for('news_archive', edition=prev_date) }}">&larr; {{ prev_date }}</a>{% endif %}
-    {% if not is_today %}<a href="{{ url_for('news') }}">Latest edition</a>{% endif %}
-    {% if next_date %}<a href="{{ url_for('news_archive', edition=next_date) }}">{{ next_date }} &rarr;</a>{% endif %}
+    {% if prev_date %}<a href="{{ url_for('news.archive', edition=prev_date) }}">&larr; {{ prev_date }}</a>{% endif %}
+    {% if not is_today %}<a href="{{ url_for('news.index') }}">Latest edition</a>{% endif %}
+    {% if next_date %}<a href="{{ url_for('news.archive', edition=next_date) }}">{{ next_date }} &rarr;</a>{% endif %}
   </nav>
   {% endif %}
 </header>

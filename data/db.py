@@ -14,7 +14,7 @@ from typing import Any, Optional
 import mysql.connector
 from mysql.connector import pooling
 
-from professions import PROFESSION_SKILL_IDS
+from .professions import PROFESSION_SKILL_IDS
 
 _pool: Optional[pooling.MySQLConnectionPool] = None
 

@@ -34,8 +34,9 @@ import logging
 import os
 import re
 
-import news_prompts
-from news_prompts import Reporter
+from . import db
+from . import news_prompts
+from .news_prompts import Reporter
 
 log = logging.getLogger("guildhall.news")
 
@@ -225,3 +226,42 @@ def _parse_article(text: str) -> dict | None:
         log.warning("model article missing required keys: %s", list(obj))
         return None
     return obj
+
+
+# --- today's market edition (cache-first; shared by the web app + scheduler) -
+# The market sections of the news desk, in display order. Heroic Exploits is
+# deliberately omitted here (player-activity stories come later).
+NEWS_MARKET_CATEGORIES = (
+    news_prompts.PROFESSIONAL_DIGEST,
+    news_prompts.GEAR_FOR_YOU,
+    news_prompts.PRIMARY_STATS,
+)
+
+
+def todays_news(desk: NewsDesk, events: dict | None) -> list[dict]:
+    """Today's market articles, cache-first. For each market category, return the
+    cached article for today's event date, generating (and caching) it on a miss.
+
+    Returns [] when there is no active market event or the desk is offline with
+    nothing cached -- the page renders an empty state in that case.
+
+    Lives in the data layer (not a blueprint) so both the web app's News page and
+    the offline news scheduler can call it without importing the Flask app.
+    """
+    if not events or not (events.get("enabled") or events.get("discount_enabled")):
+        return []
+    event_date = events.get("date")
+    cached = {row["category"]: row for row in db.news_get(event_date)}
+    out: list[dict] = []
+    for cat in NEWS_MARKET_CATEGORIES:
+        article = cached.get(cat)
+        if article is None and desk.available():
+            # Seed the reporter pick per (date, category) so the byline is stable
+            # all day but the three sections don't all land on the same reporter.
+            article = desk.generate_market_article(
+                cat, events, seed=f"{event_date}:{cat}")
+            if article:
+                db.news_store(event_date, article)
+        if article:
+            out.append(article)
+    return out

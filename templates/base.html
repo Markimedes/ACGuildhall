@@ -12,18 +12,18 @@
 
   <div class="layout{{ ' has-actions' if action_content.strip() }}">
     <aside class="nav-rail">
-      <a class="brand" href="{{ url_for('dashboard') }}">Guildhall</a>
+      <a class="brand" href="{{ url_for('core.dashboard') }}">Guildhall</a>
       {% if session.account_id %}
       <nav class="nav-links">
-        <a href="{{ url_for('news') }}" class="{{ 'active' if request.endpoint in ('news', 'news_archive') }}">News</a>
-        <a href="{{ url_for('forum') }}" class="{{ 'active' if request.endpoint == 'forum' }}">Forum</a>
-        <a href="{{ url_for('roster') }}" class="{{ 'active' if request.endpoint == 'roster' }}">Roster</a>
-        <a href="{{ url_for('chronicle') }}" class="{{ 'active' if request.endpoint == 'chronicle' }}">Chronicle</a>
-        <a href="{{ url_for('auctionhouse') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('auctionhouse') }}">Auction House</a>
-        <a href="{{ url_for('downloads') }}" class="{{ 'active' if request.endpoint == 'downloads' }}">Downloads</a>
-        <a href="{{ url_for('invites') }}" class="{{ 'active' if request.endpoint == 'invites' }}">Invites</a>
-        {% if is_admin %}<a href="{{ url_for('admin_tokens') }}" class="{{ 'active' if request.endpoint == 'admin_tokens' }}">Admin</a>{% endif %}
-        <a href="{{ url_for('password') }}" class="{{ 'active' if request.endpoint == 'password' }}">Password</a>
+        <a href="{{ url_for('news.index') }}" class="{{ 'active' if request.endpoint in ('news.index', 'news.archive') }}">News</a>
+        <a href="{{ url_for('forum.index') }}" class="{{ 'active' if request.endpoint == 'forum.index' }}">Forum</a>
+        <a href="{{ url_for('roster.index') }}" class="{{ 'active' if request.endpoint == 'roster.index' }}">Roster</a>
+        <a href="{{ url_for('core.chronicle') }}" class="{{ 'active' if request.endpoint == 'core.chronicle' }}">Chronicle</a>
+        <a href="{{ url_for('auction.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('auction.') }}">Auction House</a>
+        <a href="{{ url_for('downloads.index') }}" class="{{ 'active' if request.endpoint == 'downloads.index' }}">Downloads</a>
+        <a href="{{ url_for('invites.index') }}" class="{{ 'active' if request.endpoint == 'invites.index' }}">Invites</a>
+        {% if is_admin %}<a href="{{ url_for('admin.tokens') }}" class="{{ 'active' if request.endpoint == 'admin.tokens' }}">Admin</a>{% endif %}
+        <a href="{{ url_for('auth.password') }}" class="{{ 'active' if request.endpoint == 'auth.password' }}">Password</a>
       </nav>
       <div class="nav-foot">
         {% if characters %}
@@ -31,7 +31,7 @@
           <summary>{{ active_character.name if active_character else 'No characters' }}{% if active_character and active_character.guild_name %} <span class="muted">· {{ active_character.guild_name }}</span>{% endif %}</summary>
           <div class="char-menu">
             {% for ch in characters %}
-            <form method="post" action="{{ url_for('select_character') }}">
+            <form method="post" action="{{ url_for('auth.select_character') }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="guid" value="{{ ch.guid }}">
               <button type="submit" class="char-option {{ 'active' if active_character and ch.guid == active_character.guid }}">
@@ -43,7 +43,7 @@
           </div>
         </details>
         {% endif %}
-        <form class="inline" method="post" action="{{ url_for('logout') }}">
+        <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="link">Log out ({{ session.username }})</button>
         </form>

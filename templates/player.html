@@ -19,7 +19,7 @@
 </div>
 {% endmacro %}
 {% block content %}
-<p><a href="{{ url_for('roster') }}">&larr; Roster</a></p>
+<p><a href="{{ url_for('roster.index') }}">&larr; Roster</a></p>
 <h1>{{ target.name }} <span class="muted">level {{ target.level }}</span></h1>
 
 {% if profs %}

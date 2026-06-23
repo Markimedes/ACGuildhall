@@ -5,7 +5,7 @@
 <p class="muted">You've been invited to the realm. Pick your account name and password —
   these are what you'll use to log in to the game.</p>
 
-<form method="post" action="{{ url_for('invite_redeem', token=token) }}" class="card">
+<form method="post" action="{{ url_for('invites.redeem', token=token) }}" class="card">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Account name
     <input type="text" name="username" maxlength="17" autocomplete="username"

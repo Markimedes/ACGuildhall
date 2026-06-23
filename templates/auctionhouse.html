@@ -92,7 +92,7 @@
 
 {% if can_refresh %}
 <div class="ah-refresh">
-  <form method="post" action="{{ url_for('auctionhouse_refresh') }}">
+  <form method="post" action="{{ url_for('auction.refresh') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="link ah-refresh-btn">&#8635; Refresh inventory</button>
   </form>
@@ -104,7 +104,7 @@
 </div>
 {% endif %}
 
-<form method="post" action="{{ url_for('auctionhouse_review') }}" id="ah-form">
+<form method="post" action="{{ url_for('auction.review') }}" id="ah-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <section class="ah-section">

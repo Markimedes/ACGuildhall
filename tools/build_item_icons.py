@@ -16,13 +16,17 @@ import argparse
 import json
 from pathlib import Path
 
+# build_recipes (sibling) puts the repo root on sys.path; it owns the data import.
 from build_recipes import discover_dbc_dir, parse_item_display_icons
+
+# Regenerated JSON must land in data/ where the runtime modules read it.
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dbc-dir", type=Path, default=None)
-    ap.add_argument("--out", type=Path, default=Path(__file__).with_name("item_icons.json"))
+    ap.add_argument("--out", type=Path, default=_DATA_DIR / "item_icons.json")
     args = ap.parse_args()
 
     dbc_dir = args.dbc_dir or discover_dbc_dir()

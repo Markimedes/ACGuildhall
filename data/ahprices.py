@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import db
+from . import db
 
 _HERE = Path(__file__).resolve().parent
 

@@ -15,15 +15,15 @@ from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, UserMixin
 from flask_wtf import CSRFProtect
 
-import db
-from news_ai import NewsDesk
+from data import db
+from data.news_ai import NewsDesk
 
 # Flask-WTF CSRF. Replaces the hand-rolled token/compare in security.py; it
 # registers the ``csrf_token()`` Jinja global the templates already call.
 csrf = CSRFProtect()
 
 login_manager = LoginManager()
-login_manager.login_view = "login"
+login_manager.login_view = "auth.login"
 # Don't flash Flask-Login's default "please log in" message; the bare redirect
 # matches the prior hand-rolled behavior.
 login_manager.login_message = None
@@ -71,7 +71,7 @@ def load_user(user_id: str) -> User | None:
 def _unauthorized():
     # Preserve the prior redirect target exactly: /login?next=<path> (a clean
     # path, which the login view's ``startswith('/')`` guard then accepts).
-    return redirect(url_for("login", next=request.path))
+    return redirect(url_for("auth.login", next=request.path))
 
 
 # Rate limiting. ``default_limits=[]`` means nothing is limited unless a route

@@ -15,23 +15,23 @@
 {% endif %}
 
 <div class="cards">
-  <a class="tile" href="{{ url_for('forum') }}">
+  <a class="tile" href="{{ url_for('forum.index') }}">
     <h2>Guild Forum</h2>
     <p>Announcements from your guild leader and discussion with members.</p>
   </a>
-  <a class="tile" href="{{ url_for('roster') }}">
+  <a class="tile" href="{{ url_for('roster.index') }}">
     <h2>Profession Roster</h2>
     <p>See who in the guild can craft what.</p>
   </a>
-  <a class="tile" href="{{ url_for('auctionhouse') }}">
+  <a class="tile" href="{{ url_for('auction.index') }}">
     <h2>Auction House</h2>
     <p>What your bags and bank would sell for on the AH.</p>
   </a>
-  <a class="tile" href="{{ url_for('downloads') }}">
+  <a class="tile" href="{{ url_for('downloads.index') }}">
     <h2>Downloads</h2>
     <p>Game client, addons, and other shared files.</p>
   </a>
-  <a class="tile" href="{{ url_for('password') }}">
+  <a class="tile" href="{{ url_for('auth.password') }}">
     <h2>Change Password</h2>
     <p>Update your account password.</p>
   </a>
